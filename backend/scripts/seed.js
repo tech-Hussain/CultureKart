@@ -12,14 +12,14 @@ const Artisan = require('../src/models/Artisan');
 const Product = require('../src/models/Product');
 const Order = require('../src/models/Order');
 
-// Sample IPFS placeholder URLs (mock CIDs)
+// Sample images from placeholder services (using real URLs for development)
 const SAMPLE_IMAGES = [
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash1TextileEmbroidery',
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash2PotteryBlueVase',
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash3AjrakFabric',
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash4BrassHanging',
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash5RalliQuilt',
-  'https://gateway.pinata.cloud/ipfs/QmSampleHash6CamelLamp',
+  'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800&q=80', // Textile/Fabric
+  'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&q=80', // Pottery
+  'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?w=800&q=80', // Fabric/Textile pattern
+  'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80', // Metal/Brass decor
+  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80', // Handmade crafts
+  'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=800&q=80', // Lamp/Lighting
 ];
 
 // Connect to MongoDB
@@ -241,7 +241,7 @@ const seedProducts = async (artisans) => {
         images: [SAMPLE_IMAGES[3]],
         ipfsMetadataHash: 'QmSampleMetadataHash4Brass',
         blockchainTxn: '0x234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        category: 'Metal Work',
+        category: 'Metalwork',
         tags: ['brass', 'metal work', 'wall hanging', 'islamic art', 'decor'],
         dimensions: '40cm x 40cm',
         weight: '1.2kg',
@@ -279,7 +279,7 @@ const seedProducts = async (artisans) => {
         images: [SAMPLE_IMAGES[5]],
         ipfsMetadataHash: 'QmSampleMetadataHash6CamelLamp',
         blockchainTxn: '0xcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
-        category: 'Decor',
+        category: 'Other',
         tags: ['lamp', 'camel skin', 'lighting', 'decor', 'handpainted'],
         dimensions: '30cm height x 25cm diameter',
         weight: '400g',
@@ -450,14 +450,15 @@ const seed = async () => {
     const users = await seedUsers();
     const artisans = await seedArtisans(users);
     const products = await seedProducts(artisans);
-    const orders = await seedOrders(users, products);
+    // const orders = await seedOrders(users, products); // Temporarily disabled
+    const orders = []; // Placeholder
 
     console.log('\n✅ Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   Users: ${users.length}`);
     console.log(`   Artisans: ${artisans.length}`);
     console.log(`   Products: ${products.length}`);
-    console.log(`   Orders: ${orders.length}`);
+    console.log(`   Orders: ${orders.length} (orders seeding temporarily disabled)`);
     console.log('\n📝 Sample credentials:');
     console.log('   Admin: admin@culturekart.com');
     console.log('   Artisan: fatima@artisan.com');

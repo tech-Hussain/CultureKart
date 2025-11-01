@@ -2,28 +2,23 @@
  * Navbar Component
  */
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { signOutUser } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 function Navbar() {
-  const [user, setUser] = useState(null);
+  const { user, updateUser } = useAuth();
 
-  useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      updateUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
     }
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('firebaseToken');
-    localStorage.removeItem('user');
-    setUser(null);
-    window.location.href = '/auth';
   };
 
   return (
-    <nav className="bg-white shadow-md border-b-2 border-camel-200">
+    <nav className="bg-white shadow-md border-b-2 border-camel-200 relative z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -55,7 +50,16 @@ function Navbar() {
           <div className="flex items-center space-x-4">
             {user ? (
               <>
-                <Link to="/dashboard" className="text-gray-700 hover:text-camel-600 font-medium transition-colors">
+                <Link 
+                  to={
+                    user.role === 'admin' 
+                      ? '/admin/dashboard' 
+                      : user.role === 'artisan' 
+                      ? '/artisan/dashboard' 
+                      : '/dashboard'
+                  } 
+                  className="text-gray-700 hover:text-camel-600 font-medium transition-colors"
+                >
                   Dashboard
                 </Link>
                 <button
@@ -66,9 +70,14 @@ function Navbar() {
                 </button>
               </>
             ) : (
-              <Link to="/auth" className="btn-primary">
-                Login
-              </Link>
+              <>
+                <Link to="/login" className="text-gray-700 hover:text-camel-600 font-medium transition-colors">
+                  Login
+                </Link>
+                <Link to="/signup" className="btn-primary">
+                  Sign Up
+                </Link>
+              </>
             )}
           </div>
         </div>

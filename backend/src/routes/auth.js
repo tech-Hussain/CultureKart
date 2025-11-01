@@ -19,8 +19,13 @@ router.post('/verify', verifyFirebaseToken, async (req, res) => {
     // req.user is set by verifyFirebaseToken middleware
     const { uid, email, name, picture, email_verified } = req.user;
 
-    // Check if user exists in database
-    let user = await User.findOne({ firebaseUid: uid });
+    // Check if user exists in database by firebaseUid OR email
+    let user = await User.findOne({ 
+      $or: [
+        { firebaseUid: uid },
+        { email: email }
+      ]
+    });
 
     if (!user) {
       // Create new user if doesn't exist
@@ -32,21 +37,49 @@ router.post('/verify', verifyFirebaseToken, async (req, res) => {
           avatar: picture || '',
         },
         emailVerified: email_verified || false,
-        role: 'buyer', // Default role for new users
+        role: 'user', // Default role - will be updated after role selection
         isActive: true,
       });
 
       await user.save();
       console.log(`New user created: ${email} (${uid})`);
     } else {
-      // Update last login for existing user
-      await user.updateLastLogin();
+      // User exists - update their information
+      let updated = false;
+      
+      // Update firebaseUid if it changed (e.g., different auth provider)
+      if (user.firebaseUid !== uid) {
+        user.firebaseUid = uid;
+        updated = true;
+        console.log(`Updated firebaseUid for user: ${email}`);
+      }
+      
+      // Update name if not set
+      if (!user.name && name) {
+        user.name = name;
+        updated = true;
+      }
+      
+      // Update avatar if not set
+      if (picture && (!user.profile || !user.profile.avatar)) {
+        if (!user.profile) user.profile = {};
+        user.profile.avatar = picture;
+        updated = true;
+      }
       
       // Update email verification status if changed
       if (email_verified && !user.emailVerified) {
         user.emailVerified = true;
+        updated = true;
+      }
+      
+      // Save if any updates were made
+      if (updated) {
         await user.save();
       }
+      
+      // Update last login
+      await user.updateLastLogin();
     }
 
     // Return user profile (excluding sensitive fields)
@@ -144,10 +177,18 @@ router.patch('/profile', verifyFirebaseToken, async (req, res) => {
     }
 
     // Allow updating specific fields
-    const { name, profile } = req.body;
+    const { name, profile, role } = req.body;
 
     if (name) {
       user.name = name;
+    }
+
+    // Allow role update (only from 'user' to 'buyer' or 'artisan')
+    if (role && user.role === 'user') {
+      if (role === 'buyer' || role === 'artisan') {
+        user.role = role;
+        console.log(`User role updated: ${user.email} -> ${role}`);
+      }
     }
 
     if (profile) {

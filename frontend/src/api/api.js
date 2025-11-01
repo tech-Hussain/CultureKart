@@ -128,4 +128,68 @@ export const clearAuthToken = () => {
   delete api.defaults.headers.common['Authorization'];
 };
 
+/**
+ * Authentication API
+ */
+
+/**
+ * Verify Firebase token and login/register user
+ * @param {string} token - Firebase ID token
+ * @returns {Promise} User profile data
+ */
+export const loginUser = async (token) => {
+  try {
+    const response = await api.post('/auth/verify', {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // Store user data in localStorage
+    if (response.data.success && response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get current user profile
+ * @returns {Promise} User profile data
+ */
+export const getUserProfile = async () => {
+  try {
+    const response = await api.get('/auth/profile');
+    return response.data;
+  } catch (error) {
+    console.error('Get profile error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update user profile
+ * @param {Object} profileData - Profile data to update
+ * @returns {Promise} Updated user profile
+ */
+export const updateUserProfile = async (profileData) => {
+  try {
+    const response = await api.patch('/auth/profile', profileData);
+    
+    // Update user data in localStorage
+    if (response.data.success && response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Update profile error:', error);
+    throw error;
+  }
+};
+
 export default api;

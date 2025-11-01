@@ -3,8 +3,8 @@
  * Handles routing and layout
  */
 
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Layout Components
 import Navbar from './components/layout/Navbar';
@@ -15,37 +15,38 @@ import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
+// Artisan Dashboard Components
+import DashboardLayout from './components/artisan/DashboardLayout';
+import ArtisanDashboard from './pages/artisan/Dashboard';
+import AddProduct from './pages/artisan/AddProduct';
+import ManageProducts from './pages/artisan/ManageProducts';
+import Orders from './pages/artisan/Orders';
+import Analytics from './pages/artisan/Analytics';
+import Wallet from './pages/artisan/Wallet';
+import Withdraw from './pages/artisan/Withdraw';
+import Messages from './pages/artisan/Messages';
+import Settings from './pages/artisan/Settings';
+
+// Admin Dashboard Components
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboardPage from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
+import ProductManagement from './pages/admin/ProductManagement';
+import OrderMonitoring from './pages/admin/OrderMonitoring';
+import PayoutManagement from './pages/admin/PayoutManagement';
+import CategoriesManagement from './pages/admin/CategoriesManagement';
+import CMSMarketing from './pages/admin/CMSMarketing';
+import SupportTickets from './pages/admin/SupportTickets';
+
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('firebaseToken');
-    const userStr = localStorage.getItem('user');
-
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setIsAuthenticated(true);
-        setUserRole(user.role);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        setIsAuthenticated(false);
-      }
-    } else {
-      setIsAuthenticated(false);
-    }
-
-    setLoading(false);
-  }, []);
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -55,11 +56,11 @@ function ProtectedRoute({ children, requiredRole }) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
+  if (requiredRole && user.role !== requiredRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -74,52 +75,108 @@ function ProtectedRoute({ children, requiredRole }) {
   return children;
 }
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const isArtisanDashboard = location.pathname.startsWith('/artisan');
+  const isAdminDashboard = location.pathname.startsWith('/admin');
+
+  // Don't show navbar and footer for admin dashboard
+  const showNavbar = !isAdminDashboard;
+  const showFooter = !isArtisanDashboard && !isAdminDashboard;
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
+      {showNavbar && <Navbar />}
       
       <main className="flex-grow">
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/shop" element={<ProductList />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/auth" element={<Login />} />
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/shop" element={<ProductList />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/auth" element={<Login />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <BuyerDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller"
-            element={
-              <ProtectedRoute>
-                <SellerDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <BuyerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Artisan Dashboard Routes */}
+            <Route
+              path="/artisan/*"
+              element={
+                <ProtectedRoute requiredRole="artisan">
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="dashboard" element={<ArtisanDashboard />} />
+              <Route path="products/add" element={<AddProduct />} />
+              <Route path="products" element={<ManageProducts />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="wallet" element={<Wallet />} />
+              <Route path="withdraw" element={<Withdraw />} />
+              <Route path="messages" element={<Messages />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
 
-          {/* 404 Not Found */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            {/* Admin Dashboard Routes */}
+            <Route
+              path="/admin/*"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="orders" element={<OrderMonitoring />} />
+              <Route path="payouts" element={<PayoutManagement />} />
+              <Route path="categories" element={<CategoriesManagement />} />
+              <Route path="cms" element={<CMSMarketing />} />
+              <Route path="support" element={<SupportTickets />} />
+            </Route>
+
+            <Route
+              path="/seller"
+              element={
+                <ProtectedRoute>
+                  <SellerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <Navigate to="/admin/dashboard" replace />
+              }
+            />
+
+            {/* 404 Not Found */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
       </main>
 
-      <Footer />
+      {showFooter && <Footer />}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

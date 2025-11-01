@@ -1,6 +1,7 @@
 /**
  * Seller Dashboard Page (Artisan)
  */
+import { Link } from 'react-router-dom';
 import ThemeBanner from '../components/ThemeBanner';
 
 function SellerDashboard() {
@@ -31,7 +32,9 @@ function SellerDashboard() {
         <div className="card mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-maroon-800">My Products</h2>
-            <button className="btn-primary">Add Product</button>
+            <Link to="/artisan/products/add" className="btn-primary">
+              Add Product
+            </Link>
           </div>
           <p className="text-gray-600">Your products will appear here.</p>
         </div>

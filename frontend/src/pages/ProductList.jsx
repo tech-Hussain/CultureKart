@@ -64,8 +64,8 @@ function ProductList() {
 
       const response = await api.get(`/products?${params.toString()}`);
 
-      if (response.data.success) {
-        setProducts(response.data.products);
+      if (response.data.status === 'success') {
+        setProducts(response.data.data.products);
         setPagination({
           currentPage: response.data.pagination.page,
           totalPages: response.data.pagination.pages,

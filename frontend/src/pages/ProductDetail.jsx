@@ -23,8 +23,8 @@ function ProductDetail() {
         setError(null);
         const response = await api.get(`/products/${id}`);
         
-        if (response.data.success) {
-          setProduct(response.data.product);
+        if (response.data.status === 'success') {
+          setProduct(response.data.data.product);
         }
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -303,16 +303,20 @@ function ProductDetail() {
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Specifications</h3>
               <div className="space-y-2">
-                {product.dimensions && (
+                {product.dimensions && product.dimensions.length && product.dimensions.width && product.dimensions.height && (
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-gray-600">Dimensions</span>
-                    <span className="font-medium">{product.dimensions}</span>
+                    <span className="font-medium">
+                      {product.dimensions.length} × {product.dimensions.width} × {product.dimensions.height} {product.dimensions.unit || 'cm'}
+                    </span>
                   </div>
                 )}
-                {product.weight && (
+                {product.weight && product.weight.value && (
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-gray-600">Weight</span>
-                    <span className="font-medium">{product.weight}</span>
+                    <span className="font-medium">
+                      {product.weight.value} {product.weight.unit || 'kg'}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between py-2 border-b">
@@ -339,10 +343,10 @@ function ProductDetail() {
                   <span className="text-gray-600">Sold</span>
                   <span className="font-medium">{product.soldCount || 0}</span>
                 </div>
-                {product.rating && (
+                {product.rating && product.rating.average > 0 && (
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-gray-600">Rating</span>
-                    <span className="font-medium">⭐ {product.rating.toFixed(1)}</span>
+                    <span className="font-medium">⭐ {product.rating.average.toFixed(1)} ({product.rating.count} reviews)</span>
                   </div>
                 )}
               </div>
@@ -364,7 +368,7 @@ function ProductDetail() {
                   <code className="flex-1 bg-white px-4 py-2 rounded border text-sm font-mono text-gray-800">
                     {product.ipfsMetadataHash || 'Not available'}
                   </code>
-                  {product.ipfsMetadataHash && (
+                  {product.ipfsMetadataHash && !product.ipfsMetadataHash.includes('Sample') ? (
                     <a
                       href={`https://gateway.pinata.cloud/ipfs/${product.ipfsMetadataHash}`}
                       target="_blank"
@@ -373,7 +377,15 @@ function ProductDetail() {
                     >
                       View on IPFS
                     </a>
-                  )}
+                  ) : product.ipfsMetadataHash ? (
+                    <button
+                      disabled
+                      className="btn-secondary px-4 py-2 text-sm whitespace-nowrap opacity-50 cursor-not-allowed"
+                      title="Demo hash - not uploaded to IPFS yet"
+                    >
+                      Demo Only
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -386,21 +398,32 @@ function ProductDetail() {
                   <code className="flex-1 bg-white px-4 py-2 rounded border text-sm font-mono text-gray-800">
                     {product.blockchainTxn ? truncateHash(product.blockchainTxn, 20) : 'Pending blockchain registration'}
                   </code>
-                  {product.blockchainTxn && (
+                  {product.blockchainTxn && 
+                   product.blockchainTxn.startsWith('0x') && 
+                   product.blockchainTxn.length === 66 &&
+                   !product.blockchainTxn.includes('abcdef123456') ? (
                     <a
-                      href={`https://etherscan.io/tx/${product.blockchainTxn}`}
+                      href={`https://sepolia.etherscan.io/tx/${product.blockchainTxn}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-secondary px-4 py-2 text-sm whitespace-nowrap"
                     >
                       View on Etherscan
                     </a>
-                  )}
+                  ) : product.blockchainTxn ? (
+                    <button
+                      disabled
+                      className="btn-secondary px-4 py-2 text-sm whitespace-nowrap opacity-50 cursor-not-allowed"
+                      title="Demo transaction - not on blockchain yet"
+                    >
+                      Demo Only
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
               <p className="text-sm text-gray-600 mt-4">
-                {product.blockchainTxn ? (
+                {product.blockchainTxn && !product.blockchainTxn.includes('abcdef123456') ? (
                   <>
                     ✅ This product's authenticity has been permanently recorded on the Ethereum blockchain.
                   </>

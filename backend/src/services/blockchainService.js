@@ -27,11 +27,11 @@ let isConfigured = false;
 const initializeBlockchain = () => {
   try {
     const rpcUrl = process.env.INFURA_ALCHEMY_RPC_URL;
-    const contractAddress = process.env.CONTRACT_ADDRESS;
+    const contractAddress = process.env.PROVENANCE_CONTRACT_ADDRESS;
     const privateKey = process.env.PRIVATE_KEY;
 
     if (!rpcUrl || !contractAddress) {
-      console.warn('⚠️  Blockchain configuration incomplete (INFURA_ALCHEMY_RPC_URL or CONTRACT_ADDRESS missing).');
+      console.warn('⚠️  Blockchain configuration incomplete (INFURA_ALCHEMY_RPC_URL or PROVENANCE_CONTRACT_ADDRESS missing).');
       console.warn('⚠️  Blockchain features will be disabled. Mock transaction IDs will be generated.');
       isConfigured = false;
       return false;
