@@ -2,20 +2,14 @@
  * Navbar Component
  */
 import { Link } from 'react-router-dom';
-import { signOutUser } from '../../services/authService';
+import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import UserAvatar from '../UserAvatar';
 
 function Navbar() {
-  const { user, updateUser } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-      updateUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+  const { user } = useAuth();
+  const { cartCount } = useCart();
 
   return (
     <nav className="bg-white shadow-md border-b-2 border-camel-200 relative z-50">
@@ -50,24 +44,36 @@ function Navbar() {
           <div className="flex items-center space-x-4">
             {user ? (
               <>
+                {/* Show Dashboard link only for admin/artisan */}
+                {(user.role === 'admin' || user.role === 'artisan') && (
+                  <Link 
+                    to={
+                      user.role === 'admin' 
+                        ? '/admin/dashboard' 
+                        : '/artisan/dashboard'
+                    } 
+                    className="text-gray-700 hover:text-camel-600 font-medium transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                
+                {/* Cart Icon with Badge */}
                 <Link 
-                  to={
-                    user.role === 'admin' 
-                      ? '/admin/dashboard' 
-                      : user.role === 'artisan' 
-                      ? '/artisan/dashboard' 
-                      : '/dashboard'
-                  } 
-                  className="text-gray-700 hover:text-camel-600 font-medium transition-colors"
+                  to="/cart" 
+                  className="relative text-gray-700 hover:text-camel-600 transition-colors"
+                  title="Shopping Cart"
                 >
-                  Dashboard
+                  <ShoppingCart className="w-6 h-6" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </span>
+                  )}
                 </Link>
-                <button
-                  onClick={handleLogout}
-                  className="btn-secondary"
-                >
-                  Logout
-                </button>
+                
+                {/* User Avatar with Dropdown */}
+                <UserAvatar />
               </>
             ) : (
               <>

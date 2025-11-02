@@ -36,7 +36,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+    console.log(`🌐 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    if (req.method === 'PATCH' && req.path.includes('/auth/profile')) {
+      console.log('📋 Headers:', req.headers);
+      console.log('📦 Body:', req.body);
+    }
     next();
   });
 }
@@ -44,6 +48,9 @@ if (process.env.NODE_ENV === 'development') {
 /**
  * API Routes - All routes under /api/v1
  */
+
+// Stripe webhook - MUST be before express.json() middleware
+app.use('/api/v1/stripe/webhook', require('./src/routes/stripe'));
 
 // Health check route
 app.get('/api/v1/health', (req, res) => {
@@ -60,10 +67,12 @@ app.use('/api/v1/auth', require('./src/routes/auth'));
 app.use('/api/v1/products', require('./src/routes/products'));
 app.use('/api/v1/payments', require('./src/routes/payments'));
 app.use('/api/v1/admin', require('./src/routes/admin'));
+app.use('/api/v1/orders', require('./src/routes/orders'));
+app.use('/api/v1/cart', require('./src/routes/cart'));
+app.use('/api/v1/stripe', require('./src/routes/stripe'));
 
 // Additional routes to be implemented:
 // app.use('/api/v1/users', require('./src/routes/users'));
-// app.use('/api/v1/orders', require('./src/routes/orders'));
 // app.use('/api/v1/artisans', require('./src/routes/artisans'));
 
 /**

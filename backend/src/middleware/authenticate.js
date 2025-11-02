@@ -13,9 +13,12 @@ const User = require('../models/User');
  */
 const authenticate = async (req, res, next) => {
   try {
+    console.log('🔐 Authenticate middleware - Headers:', req.headers.authorization);
+    
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ No auth header or invalid format');
       return res.status(401).json({
         success: false,
         message: 'No authentication token provided',
@@ -23,11 +26,13 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    console.log('🔑 Token length:', token.length);
 
     // Try to determine token type
     // JWT tokens have 3 parts separated by dots
     // Firebase tokens are longer and have different structure
     const isJWT = token.split('.').length === 3 && token.length < 500;
+    console.log('🔍 Token type:', isJWT ? 'JWT' : 'Firebase');
 
     if (isJWT) {
       // Try JWT verification first

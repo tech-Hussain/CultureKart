@@ -86,12 +86,84 @@ const userSchema = new mongoose.Schema(
         default: '',
       },
 
+      // Gender
+      gender: {
+        type: String,
+        enum: ['', 'male', 'female', 'other'],
+        default: '',
+      },
+
+      // Country
+      country: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+
+      // City
+      city: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+
       // Profile picture URL (from Firebase or uploaded)
       avatar: {
         type: String,
         default: '',
       },
     },
+
+    // Delivery addresses
+    addresses: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        phone: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        addressLine: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        city: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        country: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        latitude: {
+          type: Number,
+          default: null,
+        },
+        longitude: {
+          type: Number,
+          default: null,
+        },
+        isDefault: {
+          type: Boolean,
+          default: false,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
 
     // Account status
     isActive: {

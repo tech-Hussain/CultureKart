@@ -5,6 +5,7 @@
 
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 
 // Layout Components
 import Navbar from './components/layout/Navbar';
@@ -21,6 +22,16 @@ import BuyerDashboard from './pages/BuyerDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
+
+// Buyer Profile Pages
+import ProfilePage from './pages/ProfilePage';
+import OrdersPage from './pages/OrdersPage';
+import AddressesPage from './pages/AddressesPage';
+import SettingsPage from './pages/SettingsPage';
+import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
+import CheckoutFailedPage from './pages/CheckoutFailedPage';
 
 // Artisan Dashboard Components
 import DashboardLayout from './components/artisan/DashboardLayout';
@@ -103,6 +114,68 @@ function AppContent() {
             {/* Admin Login - Separate route */}
             <Route path="/admin/login" element={<AdminLogin />} />
 
+            {/* Buyer Profile Routes - Protected */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <CartPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <CheckoutPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout-success"
+              element={
+                <ProtectedRoute>
+                  <CheckoutSuccessPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout-failed"
+              element={<CheckoutFailedPage />}
+            />
+            <Route
+              path="/addresses"
+              element={
+                <ProtectedRoute>
+                  <AddressesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Protected Routes */}
             <Route
               path="/dashboard"
@@ -183,7 +256,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
     </AuthProvider>
   );
 }

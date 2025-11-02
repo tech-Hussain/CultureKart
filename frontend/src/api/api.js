@@ -20,8 +20,10 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const token = localStorage.getItem('firebaseToken');
+    // Get token from localStorage (try both Firebase and JWT tokens)
+    const firebaseToken = localStorage.getItem('firebaseToken');
+    const authToken = localStorage.getItem('authToken');
+    const token = firebaseToken || authToken;
 
     // If token exists, add to Authorization header
     if (token) {

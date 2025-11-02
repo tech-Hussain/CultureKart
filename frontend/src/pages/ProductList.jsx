@@ -4,12 +4,16 @@
  */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ShoppingCart, Check } from 'lucide-react';
 import api from '../api/api';
+import { useCart } from '../context/CartContext';
 
 function ProductList() {
+  const { addToCart, isInCart } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [addingToCart, setAddingToCart] = useState(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -99,6 +103,16 @@ function ProductList() {
   const handlePageChange = (newPage) => {
     fetchProducts(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle add to cart
+  const handleAddToCart = async (e, productId) => {
+    e.preventDefault(); // Prevent navigation to product detail
+    e.stopPropagation();
+    
+    setAddingToCart(productId);
+    await addToCart(productId, 1);
+    setAddingToCart(null);
   };
 
   // Get category emoji
@@ -241,60 +255,96 @@ function ProductList() {
               <>
                 <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
                   {products.map((product) => (
-                    <Link
+                    <div
                       key={product._id}
-                      to={`/product/${product._id}`}
-                      className="card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+                      className="card hover:shadow-2xl transition-all duration-300 group relative"
                     >
-                      {/* Product Image */}
-                      <div className="relative w-full h-48 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg mb-4 overflow-hidden">
-                        {product.images && product.images.length > 0 ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.title}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl">
-                            {getCategoryEmoji(product.category)}
-                          </div>
-                        )}
-                        
-                        {/* Blockchain Badge */}
-                        {product.blockchainTxn && (
-                          <div className="absolute top-2 right-2 bg-teal-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                            ⛓️ Verified
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Product Info */}
-                      <div>
-                        <span className="inline-block px-3 py-1 bg-camel-100 text-camel-800 text-xs font-semibold rounded-full mb-2">
-                          {product.category}
-                        </span>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-maroon-700 transition-colors">
-                          {product.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                          by {product.artisan?.displayName || 'Artisan'}
-                        </p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-2xl font-bold text-maroon-600">
-                            ${product.price}
-                          </span>
-                          {product.stock > 0 ? (
-                            <span className="text-xs text-teal-600 font-semibold">
-                              {product.stock} in stock
-                            </span>
+                      <Link
+                        to={`/product/${product._id}`}
+                        className="block"
+                      >
+                        {/* Product Image */}
+                        <div className="relative w-full h-48 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg mb-4 overflow-hidden">
+                          {product.images && product.images.length > 0 ? (
+                            <img
+                              src={product.images[0]}
+                              alt={product.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
                           ) : (
-                            <span className="text-xs text-red-600 font-semibold">
-                              Out of stock
-                            </span>
+                            <div className="w-full h-full flex items-center justify-center text-6xl">
+                              {getCategoryEmoji(product.category)}
+                            </div>
+                          )}
+                          
+                          {/* Blockchain Badge */}
+                          {product.blockchainTxn && (
+                            <div className="absolute top-2 right-2 bg-teal-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                              ⛓️ Verified
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </Link>
+
+                        {/* Product Info */}
+                        <div>
+                          <span className="inline-block px-3 py-1 bg-camel-100 text-camel-800 text-xs font-semibold rounded-full mb-2">
+                            {product.category}
+                          </span>
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-maroon-700 transition-colors">
+                            {product.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-3">
+                            by {product.artisan?.displayName || 'Artisan'}
+                          </p>
+                          <div className="flex justify-between items-center">
+                            <span className="text-2xl font-bold text-maroon-600">
+                              ${product.price}
+                            </span>
+                            {product.stock > 0 ? (
+                              <span className="text-xs text-teal-600 font-semibold">
+                                {product.stock} in stock
+                              </span>
+                            ) : (
+                              <span className="text-xs text-red-600 font-semibold">
+                                Out of stock
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+
+                      {/* Add to Cart Button */}
+                      <button
+                        onClick={(e) => handleAddToCart(e, product._id)}
+                        disabled={product.stock === 0 || isInCart(product._id) || addingToCart === product._id}
+                        className={`w-full mt-4 py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 ${
+                          product.stock === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : isInCart(product._id)
+                            ? 'bg-green-500 text-white cursor-default'
+                            : 'bg-maroon-600 text-white hover:bg-maroon-700 active:scale-95'
+                        }`}
+                      >
+                        {addingToCart === product._id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Adding...</span>
+                          </>
+                        ) : isInCart(product._id) ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Added to Cart</span>
+                          </>
+                        ) : product.stock === 0 ? (
+                          <span>Out of Stock</span>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Add to Cart</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
 

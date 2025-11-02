@@ -70,13 +70,15 @@ function Signup() {
       setLoading(true);
       setError('');
 
+      // Set token BEFORE making the API call
+      localStorage.setItem('firebaseToken', pendingGoogleUser.token);
+
       // Update user role via API
       const response = await api.patch('/auth/profile', { role });
 
       if (response.data.success) {
         const updatedUser = response.data.user;
         updateUser(updatedUser);
-        localStorage.setItem('firebaseToken', pendingGoogleUser.token);
 
         // Redirect based on selected role
         if (role === 'artisan') {

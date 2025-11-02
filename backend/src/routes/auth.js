@@ -486,21 +486,28 @@ router.get('/profile', authenticate, getCurrentUser);
  */
 router.patch('/profile', authenticate, async (req, res) => {
   try {
+    console.log('🔍 PATCH /auth/profile - User from middleware:', req.user);
+    
     let user;
 
     // Find user based on auth provider
     if (req.user.authProvider === 'firebase-oauth') {
+      console.log('🔍 Looking for Firebase user with uid:', req.user.uid);
       user = await User.findOne({ firebaseUid: req.user.uid });
     } else if (req.user.authProvider === 'email-password') {
+      console.log('🔍 Looking for email user with userId:', req.user.userId);
       user = await User.findById(req.user.userId);
     }
 
     if (!user) {
+      console.log('❌ User not found in database');
       return res.status(404).json({
         success: false,
         message: 'User profile not found',
       });
     }
+
+    console.log('✅ User found:', user.email);
 
     // Allow updating specific fields
     const { name, profile, role } = req.body;
@@ -521,6 +528,9 @@ router.patch('/profile', authenticate, async (req, res) => {
       if (profile.bio !== undefined) user.profile.bio = profile.bio;
       if (profile.location !== undefined) user.profile.location = profile.location;
       if (profile.phone !== undefined) user.profile.phone = profile.phone;
+      if (profile.gender !== undefined) user.profile.gender = profile.gender;
+      if (profile.country !== undefined) user.profile.country = profile.country;
+      if (profile.city !== undefined) user.profile.city = profile.city;
       if (profile.avatar !== undefined) user.profile.avatar = profile.avatar;
     }
 
@@ -549,6 +559,247 @@ router.patch('/profile', authenticate, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Error updating user profile',
+      error: error.message,
+    });
+  }
+});
+
+// ============================================
+// ADDRESS MANAGEMENT ROUTES
+// ============================================
+
+/**
+ * @route   GET /api/v1/auth/addresses
+ * @desc    Get all addresses for the authenticated user
+ * @access  Private
+ */
+router.get('/addresses', authenticate, async (req, res) => {
+  try {
+    let user;
+
+    // Find user based on auth provider
+    if (req.user.authProvider === 'firebase-oauth') {
+      user = await User.findOne({ firebaseUid: req.user.uid });
+    } else if (req.user.authProvider === 'email-password') {
+      user = await User.findById(req.user.userId);
+    }
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      addresses: user.addresses || [],
+    });
+  } catch (error) {
+    console.error('Get addresses error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching addresses',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/v1/auth/addresses
+ * @desc    Add a new address
+ * @access  Private
+ */
+router.post('/addresses', authenticate, async (req, res) => {
+  try {
+    const { name, phone, addressLine, city, country, latitude, longitude, isDefault } = req.body;
+
+    // Validation
+    if (!name || !phone || !addressLine || !city || !country) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields: name, phone, addressLine, city, country',
+      });
+    }
+
+    let user;
+
+    // Find user based on auth provider
+    if (req.user.authProvider === 'firebase-oauth') {
+      user = await User.findOne({ firebaseUid: req.user.uid });
+    } else if (req.user.authProvider === 'email-password') {
+      user = await User.findById(req.user.userId);
+    }
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // If this is set as default, unset all other defaults
+    if (isDefault) {
+      user.addresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    // Add new address
+    const newAddress = {
+      name,
+      phone,
+      addressLine,
+      city,
+      country,
+      latitude: latitude || null,
+      longitude: longitude || null,
+      isDefault: isDefault || false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    user.addresses.push(newAddress);
+    await user.save();
+
+    // Get the newly added address with its ID
+    const addedAddress = user.addresses[user.addresses.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: 'Address added successfully',
+      address: addedAddress,
+    });
+  } catch (error) {
+    console.error('Add address error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error adding address',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/v1/auth/addresses/:id
+ * @desc    Update an address
+ * @access  Private
+ */
+router.put('/addresses/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, addressLine, city, country, latitude, longitude, isDefault } = req.body;
+
+    let user;
+
+    // Find user based on auth provider
+    if (req.user.authProvider === 'firebase-oauth') {
+      user = await User.findOne({ firebaseUid: req.user.uid });
+    } else if (req.user.authProvider === 'email-password') {
+      user = await User.findById(req.user.userId);
+    }
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Find the address
+    const address = user.addresses.id(id);
+    
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found',
+      });
+    }
+
+    // If this is set as default, unset all other defaults
+    if (isDefault) {
+      user.addresses.forEach(addr => {
+        if (addr._id.toString() !== id) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    // Update address fields
+    if (name !== undefined) address.name = name;
+    if (phone !== undefined) address.phone = phone;
+    if (addressLine !== undefined) address.addressLine = addressLine;
+    if (city !== undefined) address.city = city;
+    if (country !== undefined) address.country = country;
+    if (latitude !== undefined) address.latitude = latitude;
+    if (longitude !== undefined) address.longitude = longitude;
+    if (isDefault !== undefined) address.isDefault = isDefault;
+    address.updatedAt = new Date();
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Address updated successfully',
+      address,
+    });
+  } catch (error) {
+    console.error('Update address error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating address',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/v1/auth/addresses/:id
+ * @desc    Delete an address
+ * @access  Private
+ */
+router.delete('/addresses/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let user;
+
+    // Find user based on auth provider
+    if (req.user.authProvider === 'firebase-oauth') {
+      user = await User.findOne({ firebaseUid: req.user.uid });
+    } else if (req.user.authProvider === 'email-password') {
+      user = await User.findById(req.user.userId);
+    }
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Find and remove the address
+    const address = user.addresses.id(id);
+    
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found',
+      });
+    }
+
+    address.deleteOne();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Address deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete address error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error deleting address',
       error: error.message,
     });
   }

@@ -115,6 +115,7 @@ const verifyFirebaseToken = async (req, res, next) => {
       name: decodedToken.name || decodedToken.displayName || null,
       picture: decodedToken.picture || null,
       emailVerified: decodedToken.email_verified || false,
+      authProvider: 'firebase-oauth', // Add auth provider
     };
 
     // Continue to next middleware/route handler
