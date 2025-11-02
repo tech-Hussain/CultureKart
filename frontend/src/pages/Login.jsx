@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signInWithGoogle } from '../services/authService';
+import { signInWithGoogle, signInWithEmail } from '../services/authService';
 import { loginUser } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -99,30 +99,24 @@ function Login() {
     setError('');
 
     try {
-      // Sign in with email/password via Firebase
-      const { signInWithEmailAndPassword } = await import('firebase/auth');
-      const { auth } = await import('../config/firebase');
+      // Validate inputs
+      if (!formData.email || !formData.password) {
+        setError('Please enter both email and password');
+        setLoading(false);
+        return;
+      }
 
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      // Sign in with email/password via backend
+      const response = await signInWithEmail(formData.email, formData.password);
 
-      // Get Firebase token
-      const token = await userCredential.user.getIdToken();
-
-      // Verify with backend
-      const response = await loginUser(token);
-
-      if (response.success) {
-        updateUser(response.user);
-        localStorage.setItem('firebaseToken', token);
+      if (response) {
+        // User authenticated successfully
+        updateUser(response);
 
         // Redirect based on role
-        if (response.user.role === 'artisan') {
+        if (response.role === 'artisan') {
           navigate('/artisan/dashboard');
-        } else if (response.user.role === 'admin') {
+        } else if (response.role === 'admin') {
           navigate('/admin/dashboard');
         } else {
           navigate('/');
@@ -130,15 +124,7 @@ function Login() {
       }
     } catch (err) {
       console.error('Login error:', err);
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email. Please sign up first.');
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect password. Please try again.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address.');
-      } else {
-        setError(err.message || 'Failed to sign in');
-      }
+      setError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {
       setLoading(false);
     }

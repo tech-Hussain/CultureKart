@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signInWithGoogle } from '../services/authService';
+import { signInWithGoogle, registerWithEmail } from '../services/authService';
 import { loginUser } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -101,37 +101,30 @@ function Signup() {
     setError('');
 
     try {
-      // Create user with email/password via Firebase
-      const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
-      const { auth } = await import('../config/firebase');
+      // Validate inputs
+      if (!formData.name || !formData.email || !formData.password) {
+        setError('Please fill in all fields');
+        setLoading(false);
+        return;
+      }
 
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        setLoading(false);
+        return;
+      }
 
-      // Update profile name
-      await updateProfile(userCredential.user, {
-        displayName: formData.name,
+      // Register user with backend
+      const response = await registerWithEmail({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
       });
 
-      // Get Firebase token
-      const token = await userCredential.user.getIdToken();
-
-      // Send to backend with role
-      const response = await api.post('/auth/verify', 
-        { role: formData.role },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        updateUser(response.data.user);
-        localStorage.setItem('firebaseToken', token);
+      if (response) {
+        // User registered successfully
+        updateUser(response);
 
         // Redirect based on role
         if (formData.role === 'artisan') {
@@ -144,13 +137,7 @@ function Signup() {
       }
     } catch (err) {
       console.error('Signup error:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. Please login instead.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters.');
-      } else {
-        setError(err.message || 'Failed to create account');
-      }
+      setError(err.message || 'Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }

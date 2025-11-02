@@ -4,14 +4,15 @@
  */
 
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
     // Firebase UID - unique identifier from Firebase Authentication
+    // Optional for email/password users until they verify
     firebaseUid: {
       type: String,
-      required: [true, 'Firebase UID is required'],
-      unique: true,
+      sparse: true, // Allows multiple null values
       index: true,
     },
 
@@ -23,6 +24,21 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+    },
+
+    // Password hash - for email/password authentication
+    // Only required if not using Firebase OAuth
+    password: {
+      type: String,
+      select: false, // Don't return password by default in queries
+    },
+
+    // Authentication provider type
+    authProvider: {
+      type: String,
+      enum: ['firebase-oauth', 'email-password'],
+      default: 'firebase-oauth',
+      required: true,
     },
 
     // User's display name
@@ -144,10 +160,45 @@ userSchema.statics.findByFirebaseUid = function (firebaseUid) {
   return this.findOne({ firebaseUid });
 };
 
+// Static method: Find user by email (for email/password auth)
+userSchema.statics.findByEmail = function (email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
 // Static method: Find users by role
 userSchema.statics.findByRole = function (role) {
   return this.find({ role, isActive: true });
 };
+
+// Instance method: Check if user uses email/password authentication
+userSchema.methods.usesEmailPassword = function () {
+  return this.authProvider === 'email-password';
+};
+
+// Instance method: Compare password for email/password users
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) {
+    throw new Error('This user does not have a password set');
+  }
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Pre-save hook: Hash password if it's modified
+userSchema.pre('save', async function (next) {
+  // Only hash password if it's modified and exists
+  if (!this.isModified('password') || !this.password) {
+    return next();
+  }
+
+  try {
+    // Hash password with salt rounds of 10
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Pre-save hook: Update lastLogin on save
 userSchema.pre('save', function (next) {

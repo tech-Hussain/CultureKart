@@ -63,21 +63,36 @@ api.interceptors.response.use(
 
       // Handle specific status codes
       switch (status) {
-        case 401:
+        case 401: {
           // Unauthorized - clear token and redirect to login
-          console.warn('⚠️ Unauthorized. Clearing authentication...');
-          localStorage.removeItem('firebaseToken');
-          localStorage.removeItem('user');
+          // BUT: Don't redirect if this is a login/register attempt
+          const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
+                                 error.config?.url?.includes('/auth/register');
           
-          // Only redirect if not already on auth page
-          if (!window.location.pathname.includes('/auth')) {
-            window.location.href = '/auth';
+          if (!isAuthEndpoint) {
+            console.warn('⚠️ Unauthorized. Clearing authentication...');
+            localStorage.removeItem('firebaseToken');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            
+            // Only redirect if not already on auth page
+            if (!window.location.pathname.includes('/auth') && 
+                !window.location.pathname.includes('/admin/login')) {
+              window.location.href = '/auth';
+            }
           }
           break;
+        }
 
         case 403:
           // Forbidden - user doesn't have permission
           console.warn('⚠️ Access denied:', data.message);
+          break;
+
+        case 429:
+          // Too Many Requests - rate limiting (account locked)
+          console.warn('⚠️ Rate limit exceeded:', data.message);
+          // Don't redirect, let the component handle the lock UI
           break;
 
         case 404:

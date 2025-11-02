@@ -1,10 +1,13 @@
 import { 
-  signInWithPopup, 
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { setAuthToken } from '../api/api';
+import api from '../api/api';
 
 /**
  * Sign in with Google using Firebase
@@ -27,10 +30,82 @@ export const signInWithGoogle = async () => {
       displayName: user.displayName,
       photoURL: user.photoURL,
       token,
+      authProvider: 'firebase-oauth',
     };
   } catch (error) {
     console.error('Error signing in with Google:', error);
     throw error;
+  }
+};
+
+/**
+ * Register with email and password (Backend handles user creation)
+ * @param {Object} userData - { email, password, name, role }
+ * @returns {Promise<Object>} User data with JWT token
+ */
+export const registerWithEmail = async (userData) => {
+  try {
+    const { email, password, name, role } = userData;
+
+    // Call backend API to register user
+    const response = await api.post('/auth/register', {
+      email,
+      password,
+      name,
+      role: role || 'user',
+    });
+
+    if (response.data.success) {
+      const { user, token } = response.data;
+      
+      // Store JWT token
+      setAuthToken(token);
+      
+      return {
+        ...user,
+        token,
+        authProvider: 'email-password',
+      };
+    } else {
+      throw new Error(response.data.message || 'Registration failed');
+    }
+  } catch (error) {
+    console.error('Error registering with email:', error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Sign in with email and password
+ * @param {string} email 
+ * @param {string} password 
+ * @returns {Promise<Object>} User data with JWT token
+ */
+export const signInWithEmail = async (email, password) => {
+  try {
+    // Call backend API to login
+    const response = await api.post('/auth/login', {
+      email,
+      password,
+    });
+
+    if (response.data.success) {
+      const { user, token } = response.data;
+      
+      // Store JWT token
+      setAuthToken(token);
+      
+      return {
+        ...user,
+        token,
+        authProvider: 'email-password',
+      };
+    } else {
+      throw new Error(response.data.message || 'Login failed');
+    }
+  } catch (error) {
+    console.error('Error signing in with email:', error);
+    throw error.response?.data || error;
   }
 };
 
@@ -56,7 +131,7 @@ export const signOutUser = async () => {
 export const onAuthStateChange = (callback) => {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // User is signed in, get fresh token
+      // User is signed in with Firebase, get fresh token
       const token = await user.getIdToken();
       setAuthToken(token);
       
@@ -66,13 +141,40 @@ export const onAuthStateChange = (callback) => {
         displayName: user.displayName,
         photoURL: user.photoURL,
         token,
+        authProvider: 'firebase-oauth',
       });
     } else {
-      // User is signed out
-      setAuthToken(null);
-      callback(null);
+      // Check if user has JWT token (email/password auth)
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        // User might be logged in with email/password
+        // Token is already set, callback will be handled by context
+        callback(null); // Let the app check with backend
+      } else {
+        // User is completely signed out
+        setAuthToken(null);
+        callback(null);
+      }
     }
   });
+};
+
+/**
+ * Get current user profile from backend
+ * Works with both Firebase and JWT authentication
+ * @returns {Promise<Object|null>}
+ */
+export const getCurrentUserProfile = async () => {
+  try {
+    const response = await api.get('/auth/profile');
+    if (response.data.success) {
+      return response.data.user;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    return null;
+  }
 };
 
 /**

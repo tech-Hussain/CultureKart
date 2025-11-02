@@ -1,10 +1,11 @@
 /**
  * Authentication Context
  * Manages global authentication state across the app
+ * Supports both Firebase OAuth and Email/Password (JWT) authentication
  */
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChange } from '../services/authService';
+import { onAuthStateChange, getCurrentUserProfile } from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -22,28 +23,66 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Subscribe to Firebase auth state changes
-    const unsubscribe = onAuthStateChange((firebaseUser) => {
-      if (firebaseUser) {
-        // Get user data from localStorage (set by backend after login)
-        const userDataStr = localStorage.getItem('user');
-        if (userDataStr) {
-          try {
-            const userData = JSON.parse(userDataStr);
-            setUser(userData);
-          } catch (error) {
-            console.error('Error parsing user data:', error);
+    let isMounted = true;
+
+    const initAuth = async () => {
+      // Check for JWT token (email/password auth)
+      const authToken = localStorage.getItem('authToken');
+      
+      if (authToken) {
+        // User logged in with email/password, fetch profile from backend
+        try {
+          const userProfile = await getCurrentUserProfile();
+          if (userProfile && isMounted) {
+            setUser(userProfile);
+            localStorage.setItem('user', JSON.stringify(userProfile));
+          }
+        } catch (error) {
+          console.error('Error loading user profile:', error);
+          // Token might be expired or invalid, clear it
+          if (isMounted) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
             setUser(null);
           }
         }
-      } else {
-        setUser(null);
+        if (isMounted) {
+          setLoading(false);
+        }
+        return;
       }
-      setLoading(false);
-    });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+      // Check for Firebase auth or initialize Firebase listener
+      const unsubscribe = onAuthStateChange((firebaseUser) => {
+        if (!isMounted) return;
+
+        if (firebaseUser) {
+          // Get user data from localStorage (set by backend after login)
+          const userDataStr = localStorage.getItem('user');
+          if (userDataStr) {
+            try {
+              const userData = JSON.parse(userDataStr);
+              setUser(userData);
+            } catch (error) {
+              console.error('Error parsing user data:', error);
+              setUser(null);
+            }
+          }
+        } else {
+          // No Firebase user
+          setUser(null);
+        }
+        setLoading(false);
+      });
+
+      // Cleanup subscription on unmount
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
+    };
+
+    initAuth();
   }, []);
 
   const updateUser = (userData) => {
@@ -52,6 +91,8 @@ const AuthProvider = ({ children }) => {
       setUser(userData);
     } else {
       localStorage.removeItem('user');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('firebaseToken');
       setUser(null);
     }
   };

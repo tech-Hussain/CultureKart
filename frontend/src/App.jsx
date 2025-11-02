@@ -16,6 +16,7 @@ import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AdminLogin from './pages/AdminLogin';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -35,6 +36,7 @@ import Settings from './pages/artisan/Settings';
 
 // Admin Dashboard Components
 import AdminLayout from './components/admin/AdminLayout';
+import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import AdminDashboardPage from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import ProductManagement from './pages/admin/ProductManagement';
@@ -97,6 +99,9 @@ function AppContent() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth" element={<Login />} />
+            
+            {/* Admin Login - Separate route */}
+            <Route path="/admin/login" element={<AdminLogin />} />
 
             {/* Protected Routes */}
             <Route
@@ -132,9 +137,9 @@ function AppContent() {
             <Route
               path="/admin/*"
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedAdminRoute>
                   <AdminLayout />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             >
               <Route path="dashboard" element={<AdminDashboardPage />} />
@@ -155,10 +160,13 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            {/* Redirect /admin to dashboard if authenticated, otherwise to login */}
             <Route
               path="/admin"
               element={
-                <Navigate to="/admin/dashboard" replace />
+                <ProtectedAdminRoute>
+                  <Navigate to="/admin/dashboard" replace />
+                </ProtectedAdminRoute>
               }
             />
 
