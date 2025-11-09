@@ -521,6 +521,28 @@ router.patch('/profile', authenticate, async (req, res) => {
       if (role === 'buyer' || role === 'artisan') {
         user.role = role;
         console.log(`User role updated: ${user.email} -> ${role}`);
+        
+        // Auto-create Artisan profile if role is artisan
+        if (role === 'artisan') {
+          const Artisan = require('../models/Artisan');
+          const existingArtisan = await Artisan.findOne({ user: user._id });
+          
+          if (!existingArtisan) {
+            const newArtisan = await Artisan.create({
+              user: user._id,
+              displayName: user.name || user.email.split('@')[0],
+              bio: user.profile?.bio || 'A passionate artisan creating unique handcrafted products.',
+              location: user.profile?.location || user.profile?.city || user.profile?.country || 'Not specified',
+              specialty: '',
+              portfolio: [],
+              verified: false, // Requires admin approval
+              isActive: true,
+            });
+            console.log(`✅ Artisan profile auto-created for user: ${user.email}`);
+          } else {
+            console.log(`ℹ️ Artisan profile already exists for user: ${user.email}`);
+          }
+        }
       }
     }
 
@@ -800,6 +822,211 @@ router.delete('/addresses/:id', authenticate, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Error deleting address',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/auth/artisan/create-profile
+ * Create artisan profile for authenticated user
+ * Body: { displayName, bio, location, specialty, portfolio }
+ */
+router.post('/artisan/create-profile', authenticate, async (req, res) => {
+  try {
+    const { displayName, bio, location, specialty, portfolio } = req.body;
+
+    // Validate required fields
+    if (!displayName || !bio || !location) {
+      return res.status(400).json({
+        success: false,
+        message: 'displayName, bio, and location are required',
+      });
+    }
+
+    // Get user ID based on auth provider
+    let userId;
+    if (req.user.authProvider === 'firebase-oauth') {
+      const user = await User.findOne({ firebaseUid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      userId = user._id;
+    } else if (req.user.authProvider === 'email-password') {
+      userId = req.user.userId;
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unable to determine user ID',
+      });
+    }
+
+    // Check if artisan profile already exists
+    const Artisan = require('../models/Artisan');
+    const existingArtisan = await Artisan.findOne({ user: userId });
+    
+    if (existingArtisan) {
+      return res.status(400).json({
+        success: false,
+        message: 'Artisan profile already exists for this user',
+        artisan: existingArtisan,
+      });
+    }
+
+    // Create artisan profile
+    const artisan = await Artisan.create({
+      user: userId,
+      displayName,
+      bio,
+      location,
+      specialty: specialty || '',
+      portfolio: portfolio || [],
+      verified: false, // Requires admin approval
+      isActive: true,
+    });
+
+    // Update user role to artisan if not already
+    const user = await User.findById(userId);
+    if (user.role !== 'artisan') {
+      user.role = 'artisan';
+      await user.save();
+    }
+
+    await artisan.populate('user', 'name email');
+
+    return res.status(201).json({
+      success: true,
+      message: 'Artisan profile created successfully. Awaiting admin approval.',
+      artisan,
+    });
+  } catch (error) {
+    console.error('Create artisan profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error creating artisan profile',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/v1/auth/artisan/my-profile
+ * Get artisan profile for authenticated user
+ */
+router.get('/artisan/my-profile', authenticate, async (req, res) => {
+  try {
+    // Get user ID based on auth provider
+    let userId;
+    if (req.user.authProvider === 'firebase-oauth') {
+      const user = await User.findOne({ firebaseUid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      userId = user._id;
+    } else if (req.user.authProvider === 'email-password') {
+      userId = req.user.userId;
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unable to determine user ID',
+      });
+    }
+
+    const Artisan = require('../models/Artisan');
+    const artisan = await Artisan.findOne({ user: userId }).populate('user', 'name email role');
+
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found. Please create one first.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      artisan,
+    });
+  } catch (error) {
+    console.error('Get artisan profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching artisan profile',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * PUT /api/v1/auth/artisan/update-profile
+ * Update artisan profile for authenticated user
+ * Body: { displayName, bio, location, specialty, portfolio }
+ */
+router.put('/artisan/update-profile', authenticate, async (req, res) => {
+  try {
+    const { displayName, bio, location, specialty, portfolio } = req.body;
+
+    // Get user ID based on auth provider
+    let userId;
+    if (req.user.authProvider === 'firebase-oauth') {
+      const user = await User.findOne({ firebaseUid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      userId = user._id;
+    } else if (req.user.authProvider === 'email-password') {
+      userId = req.user.userId;
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unable to determine user ID',
+      });
+    }
+
+    const Artisan = require('../models/Artisan');
+    const artisan = await Artisan.findOne({ user: userId });
+
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found. Please create one first.',
+      });
+    }
+
+    // Update fields if provided
+    if (displayName) artisan.displayName = displayName;
+    if (bio) artisan.bio = bio;
+    if (location) artisan.location = location;
+    if (specialty !== undefined) artisan.specialty = specialty;
+    if (portfolio !== undefined) artisan.portfolio = portfolio;
+
+    await artisan.save();
+    await artisan.populate('user', 'name email role');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Artisan profile updated successfully',
+      artisan,
+    });
+  } catch (error) {
+    console.error('Update artisan profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating artisan profile',
       error: error.message,
     });
   }

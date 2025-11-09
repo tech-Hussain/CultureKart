@@ -11,7 +11,7 @@ const { body, query, param, validationResult } = require('express-validator');
 
 const Product = require('../models/Product');
 const Artisan = require('../models/Artisan');
-const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
+const { authenticate } = require('../middleware/authenticate');
 const ipfsService = require('../services/ipfsService');
 const blockchainService = require('../services/blockchainService');
 
@@ -59,18 +59,37 @@ const upload = multer({
  */
 const isArtisan = async (req, res, next) => {
   try {
-    const artisan = await Artisan.findOne({ user: req.user.uid });
-    
+    // Support both authentication styles: JWT (req.user.userId) and Firebase (req.user.uid)
+    let userId = null;
+
+    if (req.user && req.user.userId) {
+      userId = req.user.userId;
+    } else if (req.user && req.user.uid) {
+      // Find the User document that corresponds to this firebase UID
+      const userDoc = await require('../models/User').findOne({ firebaseUid: req.user.uid });
+      if (userDoc) userId = userDoc._id;
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Unable to determine authenticated user',
+      });
+    }
+
+    const artisan = await Artisan.findOne({ user: userId });
+
     if (!artisan) {
       return res.status(403).json({
         status: 'error',
         message: 'Only artisans can perform this action',
       });
     }
-    
+
     req.artisan = artisan;
     next();
   } catch (error) {
+    console.error('Error in isArtisan middleware:', error);
     return res.status(500).json({
       status: 'error',
       message: 'Error verifying artisan status',
@@ -84,7 +103,7 @@ const isArtisan = async (req, res, next) => {
  */
 router.post(
   '/',
-  verifyFirebaseToken,
+  authenticate,
   isArtisan,
   upload.array('images', 10),
   [
@@ -390,7 +409,7 @@ router.get(
  */
 router.put(
   '/:id',
-  verifyFirebaseToken,
+  authenticate,
   isArtisan,
   [
     param('id').isMongoId().withMessage('Invalid product ID'),
@@ -460,7 +479,7 @@ router.put(
  */
 router.delete(
   '/:id',
-  verifyFirebaseToken,
+  authenticate,
   isArtisan,
   [param('id').isMongoId().withMessage('Invalid product ID')],
   async (req, res) => {

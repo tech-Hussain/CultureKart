@@ -94,14 +94,28 @@ const productSchema = new mongoose.Schema(
       enum: {
         values: [
           'Pottery',
+          'Pottery & Ceramics',
           'Textiles',
+          'Textiles & Fabrics',
           'Jewelry',
+          'Jewelry & Accessories',
           'Woodwork',
+          'Woodwork & Carpentry',
           'Metalwork',
+          'Metalwork & Forging',
           'Painting',
+          'Painting & Art',
           'Sculpture',
           'Embroidery',
+          'Embroidery & Needlework',
           'Calligraphy',
+          'Leatherwork',
+          'Glasswork',
+          'Basketry',
+          'Stone Carving',
+          'Paper Crafts',
+          'Home Decor',
+          'Fashion & Apparel',
           'Other',
         ],
         message: 'Invalid product category',
@@ -274,6 +288,35 @@ productSchema.pre('save', function (next) {
     }
   }
   next();
+});
+
+// Transform toJSON to convert IPFS URLs to gateway URLs
+productSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    // Convert IPFS image URLs to gateway URLs
+    if (ret.images && Array.isArray(ret.images)) {
+      ret.gatewayImages = ret.images.map(url => {
+        if (url.startsWith('ipfs://')) {
+          const cid = url.replace('ipfs://', '');
+          const gateway = process.env.IPFS_GATEWAY_URL || 'https://nftstorage.link/ipfs';
+          return `${gateway}/${cid}`;
+        }
+        return url;
+      });
+      // Keep original IPFS URLs but add gateway URLs
+      ret.ipfsImages = ret.images;
+      ret.images = ret.gatewayImages; // Override images with gateway URLs for frontend
+    }
+    
+    // Convert metadata IPFS URL to gateway URL
+    if (ret.ipfsMetadataHash) {
+      const gateway = process.env.IPFS_GATEWAY_URL || 'https://nftstorage.link/ipfs';
+      ret.metadataGatewayUrl = `${gateway}/${ret.ipfsMetadataHash}`;
+    }
+    
+    return ret;
+  }
 });
 
 // Create and export the Product model

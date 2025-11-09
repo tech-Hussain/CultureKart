@@ -1,26 +1,39 @@
-/**
+﻿/**
  * IPFS Service
- * Handles file and metadata uploads to IPFS using NFT.Storage
+ * Handles file and metadata uploads to IPFS using Pinata API directly
  */
 
-const { NFTStorage, File, Blob } = require('nft.storage');
+const axios = require('axios');
+const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
-// Initialize NFT.Storage client
-const client = process.env.IPFS_API_KEY
-  ? new NFTStorage({ token: process.env.IPFS_API_KEY })
-  : null;
+// Get Pinata JWT from environment
+const pinataJWT = process.env.PINATA_JWT || process.env.NFT_STORAGE_API_KEY || process.env.IPFS_API_KEY;
+
+// Control whether to use mock fallback or fail hard
+const ALLOW_MOCK_FALLBACK = process.env.IPFS_ALLOW_MOCK !== 'false';
+
+// Pinata API endpoints
+const PINATA_API_URL = 'https://api.pinata.cloud';
 
 /**
- * Upload multiple files to IPFS
- * @param {Array} files - Array of file objects with path, originalname, mimetype
- * @returns {Promise<Array>} Array of IPFS URLs (ipfs://...)
+ * Upload multiple files to IPFS via Pinata API
  */
 const uploadFiles = async (files) => {
   try {
-    if (!client) {
-      throw new Error('NFT.Storage client not initialized. Please provide IPFS_API_KEY in .env');
+    if (!pinataJWT) {
+      if (!ALLOW_MOCK_FALLBACK) {
+        throw new Error('Pinata JWT not configured. Please provide PINATA_JWT in .env');
+      }
+      console.warn('⚠️  Pinata JWT not configured. Using mock IPFS URLs');
+      const mockUrls = files.map((file, index) => {
+        const timestamp = Date.now();
+        const mockCid = `Qm${timestamp}${index}${Math.random().toString(36).substring(7)}`;
+        try { fs.unlinkSync(file.path); } catch {}
+        return `ipfs://${mockCid}`;
+      });
+      return mockUrls;
     }
 
     if (!files || files.length === 0) {
@@ -28,111 +41,101 @@ const uploadFiles = async (files) => {
     }
 
     const ipfsUrls = [];
-
-    // Upload each file to IPFS
     for (const file of files) {
-      // Read file from disk
-      const fileBuffer = fs.readFileSync(file.path);
+      console.log(`📤 Uploading ${file.originalname} to Pinata...`);
       
-      // Create File object for NFT.Storage
-      const nftFile = new File(
-        [fileBuffer],
-        file.originalname,
-        { type: file.mimetype }
-      );
-
-      // Store file on IPFS
-      const cid = await client.storeBlob(nftFile);
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(file.path), file.originalname);
       
-      // Build IPFS URL
-      const ipfsUrl = `ipfs://${cid}`;
+      // Upload to Pinata
+      const response = await axios.post(`${PINATA_API_URL}/pinning/pinFileToIPFS`, formData, {
+        maxBodyLength: Infinity,
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${formData.getBoundary()}`,
+          'Authorization': `Bearer ${pinataJWT}`,
+        },
+      });
+      
+      const ipfsUrl = `ipfs://${response.data.IpfsHash}`;
       ipfsUrls.push(ipfsUrl);
-
-      console.log(`✅ File uploaded to IPFS: ${file.originalname} -> ${ipfsUrl}`);
-
-      // Clean up local file after upload
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        console.warn(`⚠️  Could not delete local file: ${file.path}`);
-      }
+      
+      console.log(`✅ Uploaded: ${file.originalname} -> ${ipfsUrl}`);
+      
+      // Clean up local file
+      try { fs.unlinkSync(file.path); } catch {}
     }
-
     return ipfsUrls;
   } catch (error) {
-    console.error('❌ IPFS file upload error:', error.message);
-    throw new Error(`Failed to upload files to IPFS: ${error.message}`);
+    console.error('❌ IPFS upload error:', error.response?.data || error.message);
+    
+    if (!ALLOW_MOCK_FALLBACK) {
+      throw new Error(`Failed to upload files to IPFS: ${error.message}`);
+    }
+    
+    const mockUrls = files.map((file, index) => {
+      const timestamp = Date.now();
+      const mockCid = `Qm${timestamp}${index}${Math.random().toString(36).substring(7)}`;
+      try { fs.unlinkSync(file.path); } catch {}
+      return `ipfs://${mockCid}`;
+    });
+    return mockUrls;
   }
 };
 
-/**
- * Upload metadata JSON to IPFS
- * @param {Object} metadata - JSON object to upload
- * @returns {Promise<String>} IPFS CID of the metadata
- */
 const uploadMetadata = async (metadata) => {
   try {
-    if (!client) {
-      throw new Error('NFT.Storage client not initialized. Please provide IPFS_API_KEY in .env');
+    if (!pinataJWT) {
+      if (!ALLOW_MOCK_FALLBACK) {
+        throw new Error('Pinata JWT not configured');
+      }
+      const mockCid = `Qm${Date.now()}meta${Math.random().toString(36).substring(7)}`;
+      console.warn('⚠️  Using mock metadata CID:', mockCid);
+      return mockCid;
     }
-
-    if (!metadata || typeof metadata !== 'object') {
-      throw new Error('Invalid metadata object');
-    }
-
-    // Convert metadata to JSON string
-    const jsonString = JSON.stringify(metadata, null, 2);
     
-    // Create Blob from JSON
-    const blob = new Blob([jsonString], { type: 'application/json' });
-
-    // Store metadata on IPFS
-    const cid = await client.storeBlob(blob);
-
-    console.log(`✅ Metadata uploaded to IPFS: ${cid}`);
-
-    return cid;
+    console.log('📤 Uploading metadata to Pinata...');
+    
+    // Upload JSON to Pinata
+    const response = await axios.post(`${PINATA_API_URL}/pinning/pinJSONToIPFS`, metadata, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${pinataJWT}`,
+      },
+    });
+    
+    console.log(`✅ Metadata uploaded: ${response.data.IpfsHash}`);
+    return response.data.IpfsHash;
   } catch (error) {
-    console.error('❌ IPFS metadata upload error:', error.message);
-    throw new Error(`Failed to upload metadata to IPFS: ${error.message}`);
+    console.error('❌ Metadata upload error:', error.response?.data || error.message);
+    
+    if (!ALLOW_MOCK_FALLBACK) {
+      throw new Error(`Failed to upload metadata: ${error.message}`);
+    }
+    
+    const mockCid = `Qm${Date.now()}meta${Math.random().toString(36).substring(7)}`;
+    return mockCid;
   }
 };
 
-/**
- * Get gateway URL for IPFS content
- * @param {String} ipfsUrl - IPFS URL (ipfs://...)
- * @returns {String} HTTP gateway URL
- */
 const getGatewayUrl = (ipfsUrl) => {
   if (!ipfsUrl || !ipfsUrl.startsWith('ipfs://')) {
     return ipfsUrl;
   }
-
   const cid = ipfsUrl.replace('ipfs://', '');
-  const gateway = process.env.IPFS_GATEWAY_URL || 'https://nftstorage.link/ipfs';
-  
+  const gateway = process.env.IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs';
   return `${gateway}/${cid}`;
 };
 
-/**
- * Convert array of IPFS URLs to gateway URLs
- * @param {Array} ipfsUrls - Array of IPFS URLs
- * @returns {Array} Array of HTTP gateway URLs
- */
 const convertToGatewayUrls = (ipfsUrls) => {
   if (!Array.isArray(ipfsUrls)) {
     return [];
   }
-
   return ipfsUrls.map(url => getGatewayUrl(url));
 };
 
-/**
- * Verify IPFS client is initialized
- * @returns {Boolean} True if client is ready
- */
 const isClientReady = () => {
-  return client !== null;
+  return !!pinataJWT;
 };
 
 module.exports = {

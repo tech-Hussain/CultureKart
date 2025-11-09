@@ -3,6 +3,7 @@
  * Comprehensive form for adding products to artisan store
  */
 import { useState } from 'react';
+import api from '../../api/api';
 import { useNavigate } from 'react-router-dom';
 import {
   PhotoIcon,
@@ -140,9 +141,15 @@ function AddProduct() {
 
       // Create FormData for file upload
       const uploadData = new FormData();
-      Object.keys(formData).forEach((key) => {
-        uploadData.append(key, formData[key]);
-      });
+      // Map frontend fields to backend expected fields
+      uploadData.append('title', formData.name);
+      uploadData.append('description', formData.fullDescription);
+      uploadData.append('price', formData.price);
+      uploadData.append('stock', formData.inventory);
+      uploadData.append('category', formData.category);
+      // Optional fields
+      if (formData.shortDescription) uploadData.append('tags', formData.shortDescription);
+      if (formData.artisanCategory) uploadData.append('specialty', formData.artisanCategory);
 
       productImages.forEach((img) => {
         uploadData.append('images', img.file);
@@ -152,18 +159,21 @@ function AddProduct() {
         uploadData.append('video', productVideo.file);
       }
 
-      // TODO: Replace with actual API call
-      console.log('Product data:', formData);
-      console.log('Images:', productImages.length);
-      console.log('Video:', productVideo ? 'Yes' : 'No');
+      // Send to backend API (axios instance sets auth header)
+      const res = await api.post('/products', uploadData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      setSuccess('Product added successfully!');
-      setTimeout(() => {
-        navigate('/artisan/products');
-      }, 2000);
+      if (res?.data?.status === 'success') {
+        setSuccess('Product added successfully!');
+        setTimeout(() => {
+          navigate('/artisan/products');
+        }, 1200);
+      } else {
+        throw new Error(res?.data?.message || 'Failed to add product');
+      }
     } catch (err) {
       console.error('Error adding product:', err);
       setError(err.message || 'Failed to add product');
