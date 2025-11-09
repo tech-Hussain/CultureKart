@@ -113,8 +113,8 @@ function Home() {
             <Link to="/shop" className="btn-primary text-lg px-8 py-3">
               🛍️ Browse Products
             </Link>
-            <Link to="/seller" className="btn-secondary text-lg px-8 py-3">
-              🎨 Become an Artisan
+            <Link to="/orders" className="btn-secondary text-lg px-8 py-3">
+              📦 Track Orders
             </Link>
           </div>
         </div>
@@ -278,24 +278,6 @@ function Home() {
                 Fair prices, sustainable livelihoods.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="bg-gradient-to-r from-maroon-700 to-maroon-900 py-16 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Start Your Journey?</h2>
-          <p className="text-xl mb-8 text-ivory-100">
-            Join thousands discovering authentic Pakistani crafts
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Link to="/shop" className="bg-white text-maroon-800 font-semibold px-8 py-3 rounded-lg hover:bg-ivory-100 transition-colors">
-              Start Shopping
-            </Link>
-            <Link to="/auth" className="bg-teal-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-teal-700 transition-colors">
-              Sign Up Free
-            </Link>
           </div>
         </div>
       </section>
