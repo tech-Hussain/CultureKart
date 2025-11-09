@@ -69,7 +69,7 @@ cartItemSchema.methods.updateQuantity = function(newQuantity) {
 // Static method to get user's cart
 cartItemSchema.statics.getUserCart = async function(userId) {
   return this.find({ user: userId })
-    .populate('product', 'title images price stock isActive')
+    .populate('product', 'title images price stock status')
     .sort({ createdAt: -1 });
 };
 
@@ -105,7 +105,7 @@ cartItemSchema.pre('save', async function(next) {
       throw new Error('Product not found');
     }
     
-    if (!product.isActive) {
+    if (product.status !== 'active') {
       throw new Error('Product is no longer available');
     }
     

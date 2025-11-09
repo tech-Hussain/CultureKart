@@ -35,6 +35,7 @@ const AddressesPage = () => {
     phone: '',
     addressLine: '',
     city: '',
+    postalCode: '',
     country: '',
     latitude: '',
     longitude: ''
@@ -77,6 +78,7 @@ const AddressesPage = () => {
       phone: '',
       addressLine: '',
       city: '',
+      postalCode: '',
       country: '',
       latitude: '',
       longitude: ''
@@ -112,6 +114,7 @@ const AddressesPage = () => {
               ...prev,
               addressLine: data.display_name || '',
               city: data.address.city || data.address.town || data.address.village || '',
+              postalCode: data.address.postcode || '',
               country: data.address.country || '',
               latitude: latitude.toString(),
               longitude: longitude.toString()
@@ -173,6 +176,7 @@ const AddressesPage = () => {
         phone: formData.phone,
         addressLine: formData.addressLine,
         city: formData.city,
+        postalCode: formData.postalCode,
         country: formData.country,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
@@ -208,6 +212,7 @@ const AddressesPage = () => {
       phone: address.phone,
       addressLine: address.addressLine,
       city: address.city,
+      postalCode: address.postalCode || '',
       country: address.country,
       latitude: address.latitude || '',
       longitude: address.longitude || ''
@@ -388,18 +393,33 @@ const AddressesPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Country *
+                    Postal Code *
                   </label>
                   <input
                     type="text"
-                    name="country"
-                    value={formData.country}
+                    name="postalCode"
+                    value={formData.postalCode}
                     onChange={handleInputChange}
                     className="input-field"
                     required
-                    placeholder="Pakistan"
+                    placeholder="75500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Country *
+                </label>
+                <input
+                  type="text"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  className="input-field"
+                  required
+                  placeholder="Pakistan"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -494,7 +514,7 @@ const AddressesPage = () => {
                     <p className="text-gray-600 mb-1">{address.phone}</p>
                     <p className="text-gray-700 mb-2">{address.addressLine}</p>
                     <p className="text-gray-600">
-                      {address.city}, {address.country}
+                      {address.city}{address.postalCode ? ` - ${address.postalCode}` : ''}, {address.country}
                     </p>
                     
                     {(address.latitude && address.longitude) && (

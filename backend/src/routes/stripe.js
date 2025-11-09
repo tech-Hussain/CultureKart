@@ -15,6 +15,21 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 /**
+ * Convert IPFS URL to HTTP gateway URL
+ */
+const convertIpfsToHttp = (ipfsUrl) => {
+  if (!ipfsUrl) return null;
+  if (ipfsUrl.startsWith('http://') || ipfsUrl.startsWith('https://')) {
+    return ipfsUrl;
+  }
+  if (ipfsUrl.startsWith('ipfs://')) {
+    const cid = ipfsUrl.replace('ipfs://', '');
+    return `${process.env.IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs'}/${cid}`;
+  }
+  return ipfsUrl;
+};
+
+/**
  * POST /api/v1/stripe/create-checkout-session
  * Create Stripe Checkout Session
  */
@@ -37,14 +52,6 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
       });
     }
 
-    // Validate email is verified
-    if (!user.emailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please verify your email before checkout'
-      });
-    }
-
     // Get cart items
     const cartItems = await Cart.getUserCart(user._id);
 
@@ -57,10 +64,10 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
 
     // Validate shipping address
     if (!shippingAddress || !shippingAddress.fullName || !shippingAddress.phone || 
-        !shippingAddress.address || !shippingAddress.city || !shippingAddress.country) {
+        !shippingAddress.address || !shippingAddress.city || !shippingAddress.country || !shippingAddress.postalCode) {
       return res.status(400).json({
         success: false,
-        message: 'Complete shipping address is required'
+        message: 'Complete shipping address (including postal code) is required'
       });
     }
 
@@ -73,7 +80,7 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
         });
       }
 
-      if (!item.product.isActive) {
+      if (item.product.status !== 'active') {
         return res.status(400).json({
           success: false,
           message: `Product ${item.productName} is no longer available`
@@ -95,20 +102,25 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
     const total = subtotal + deliveryCharges + tax;
 
     // Create line items for Stripe
-    const line_items = cartItems.map(item => ({
-      price_data: {
-        currency: 'pkr',
-        product_data: {
-          name: item.productName,
-          images: item.productImage ? [item.productImage] : [],
-          metadata: {
-            productId: item.product._id.toString()
-          }
+    const line_items = cartItems.map(item => {
+      // Convert IPFS URL to HTTP gateway URL for Stripe
+      const imageUrl = convertIpfsToHttp(item.productImage);
+      
+      return {
+        price_data: {
+          currency: 'pkr',
+          product_data: {
+            name: item.productName,
+            images: imageUrl ? [imageUrl] : [],
+            metadata: {
+              productId: item.product._id.toString()
+            }
+          },
+          unit_amount: Math.round(item.price * 100) // Convert to cents
         },
-        unit_amount: Math.round(item.price * 100) // Convert to cents
-      },
-      quantity: item.quantity
-    }));
+        quantity: item.quantity
+      };
+    });
 
     // Add delivery charges as a line item
     if (deliveryCharges > 0) {
@@ -143,7 +155,7 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
     // Create pending order to track
     const orderItems = cartItems.map(item => ({
       product: item.product._id,
-      quantity: item.quantity,
+      qty: item.quantity,
       price: item.price,
       title: item.productName,
       image: item.productImage,
@@ -300,11 +312,33 @@ async function handleCheckoutSessionFailed(session) {
 
 /**
  * GET /api/v1/stripe/session/:sessionId
- * Retrieve checkout session details
+ * Retrieve checkout session details and update order if payment succeeded
  */
 router.get('/session/:sessionId', authenticate, async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+    
+    // If payment succeeded and order hasn't been updated, update it now
+    if (session.payment_status === 'paid' && session.metadata.orderId) {
+      const order = await Order.findById(session.metadata.orderId);
+      
+      if (order && order.paymentInfo.status !== 'completed') {
+        // Update order status
+        order.paymentInfo.status = 'completed';
+        order.paymentInfo.transactionId = session.payment_intent || session.id;
+        order.paymentInfo.paidAt = new Date();
+        order.status = 'confirmed';
+        await order.save();
+
+        // Clear cart
+        if (session.metadata.cartItemIds) {
+          const cartItemIds = session.metadata.cartItemIds.split(',');
+          await Cart.deleteMany({ _id: { $in: cartItemIds } });
+        }
+
+        console.log(`Order ${order._id} updated after successful payment`);
+      }
+    }
     
     return res.status(200).json({
       success: true,

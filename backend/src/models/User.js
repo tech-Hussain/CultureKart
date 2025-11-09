@@ -114,32 +114,37 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-    // Delivery addresses
+    // Delivery addresses - only validated when explicitly adding addresses
     addresses: [
       {
         name: {
           type: String,
-          required: true,
+          required: false, // Will be validated at checkout/address creation
           trim: true,
         },
         phone: {
           type: String,
-          required: true,
+          required: false, // Will be validated at checkout/address creation
           trim: true,
         },
         addressLine: {
           type: String,
-          required: true,
+          required: false, // Will be validated at checkout/address creation
           trim: true,
         },
         city: {
           type: String,
-          required: true,
+          required: false, // Will be validated at checkout/address creation
+          trim: true,
+        },
+        postalCode: {
+          type: String,
+          required: false, // Will be validated at checkout/address creation
           trim: true,
         },
         country: {
           type: String,
-          required: true,
+          required: false, // Will be validated at checkout/address creation
           trim: true,
         },
         latitude: {
@@ -191,7 +196,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ createdAt: -1 });
 
@@ -245,6 +249,90 @@ userSchema.statics.findByRole = function (role) {
 // Instance method: Check if user uses email/password authentication
 userSchema.methods.usesEmailPassword = function () {
   return this.authProvider === 'email-password';
+};
+
+// Instance method: Validate address fields for checkout
+userSchema.methods.validateAddressForCheckout = function (address) {
+  const errors = [];
+  
+  if (!address.name || address.name.trim() === '') {
+    errors.push('Address name is required');
+  }
+  
+  if (!address.phone || address.phone.trim() === '') {
+    errors.push('Phone number is required');
+  }
+  
+  if (!address.addressLine || address.addressLine.trim() === '') {
+    errors.push('Address line is required');
+  }
+  
+  if (!address.city || address.city.trim() === '') {
+    errors.push('City is required');
+  }
+  
+  if (!address.postalCode || address.postalCode.trim() === '') {
+    errors.push('Postal code is required');
+  }
+  
+  if (!address.country || address.country.trim() === '') {
+    errors.push('Country is required');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
+};
+
+// Instance method: Get default address for checkout
+userSchema.methods.getDefaultAddress = function () {
+  if (!this.addresses || this.addresses.length === 0) {
+    return null;
+  }
+  
+  // Find default address
+  const defaultAddress = this.addresses.find(addr => addr.isDefault);
+  if (defaultAddress) {
+    return defaultAddress;
+  }
+  
+  // If no default, return first address
+  return this.addresses[0];
+};
+
+// Static method: Validate address data for creation/update
+userSchema.statics.validateAddressData = function (addressData) {
+  const errors = [];
+  
+  if (!addressData.name || addressData.name.trim() === '') {
+    errors.push('Name is required for address');
+  }
+  
+  if (!addressData.phone || addressData.phone.trim() === '') {
+    errors.push('Phone number is required for address');
+  }
+  
+  if (!addressData.addressLine || addressData.addressLine.trim() === '') {
+    errors.push('Address line is required for address');
+  }
+  
+  if (!addressData.city || addressData.city.trim() === '') {
+    errors.push('City is required for address');
+  }
+  
+  if (!addressData.postalCode || addressData.postalCode.trim() === '') {
+    errors.push('Postal code is required for address');
+  }
+  
+  if (!addressData.country || addressData.country.trim() === '') {
+    errors.push('Country is required for address');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
 };
 
 // Instance method: Compare password for email/password users

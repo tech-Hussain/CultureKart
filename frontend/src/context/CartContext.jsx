@@ -134,10 +134,10 @@ export const CartProvider = ({ children }) => {
           icon: 'success',
           title: 'Added to Cart',
           text: response.data.message,
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2000
+          confirmButtonText: 'OK',
+          showCancelButton: false,
+          timer: 2000,
+          timerProgressBar: true
         });
 
         return true;
@@ -231,10 +231,8 @@ export const CartProvider = ({ children }) => {
           icon: 'success',
           title: 'Removed',
           text: 'Item removed from cart',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2000
+          confirmButtonText: 'OK',
+          showCancelButton: false
         });
 
         return true;
@@ -265,9 +263,7 @@ export const CartProvider = ({ children }) => {
         text: 'Are you sure you want to remove all items from cart?',
         showCancelButton: true,
         confirmButtonText: 'Yes, Clear All',
-        cancelButtonText: 'Cancel',
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280'
+        cancelButtonText: 'Cancel'
       });
 
       if (!result.isConfirmed) {
@@ -291,10 +287,10 @@ export const CartProvider = ({ children }) => {
           icon: 'success',
           title: 'Cart Cleared',
           text: 'All items removed from cart',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2000
+          confirmButtonText: 'OK',
+          showCancelButton: false,
+          timer: 2000,
+          timerProgressBar: true
         });
 
         return true;

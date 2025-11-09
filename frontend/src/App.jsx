@@ -26,6 +26,7 @@ import NotFound from './pages/NotFound';
 // Buyer Profile Pages
 import ProfilePage from './pages/ProfilePage';
 import OrdersPage from './pages/OrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import AddressesPage from './pages/AddressesPage';
 import SettingsPage from './pages/SettingsPage';
 import CartPage from './pages/CartPage';
@@ -128,6 +129,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetailPage />
                 </ProtectedRoute>
               }
             />

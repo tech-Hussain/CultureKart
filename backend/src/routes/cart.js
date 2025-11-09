@@ -34,8 +34,34 @@ router.get('/', authenticate, async (req, res) => {
     // Get cart items with populated product details
     const cartItems = await Cart.getUserCart(user._id);
     
+    // Transform cart items to ensure IPFS URLs are converted to gateway URLs
+    const transformedCartItems = cartItems.map(item => {
+      const itemObj = item.toObject();
+      
+      // Transform the snapshot productImage field
+      if (itemObj.productImage && itemObj.productImage.startsWith('ipfs://')) {
+        const cid = itemObj.productImage.replace('ipfs://', '');
+        const gateway = process.env.IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs';
+        itemObj.productImage = `${gateway}/${cid}`;
+      }
+      
+      // Transform populated product images
+      if (itemObj.product && itemObj.product.images) {
+        itemObj.product.images = itemObj.product.images.map(url => {
+          if (url.startsWith('ipfs://')) {
+            const cid = url.replace('ipfs://', '');
+            const gateway = process.env.IPFS_GATEWAY_URL || 'https://gateway.pinata.cloud/ipfs';
+            return `${gateway}/${cid}`;
+          }
+          return url;
+        });
+      }
+      
+      return itemObj;
+    });
+    
     // Calculate totals
-    const itemCount = cartItems.length;
+    const itemCount = transformedCartItems.length;
     const subtotal = await Cart.getCartTotal(user._id);
     const deliveryCharges = subtotal > 0 ? 150 : 0; // PKR 150 delivery or free
     const tax = subtotal * 0.05; // 5% tax
@@ -43,7 +69,7 @@ router.get('/', authenticate, async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      cartItems,
+      cartItems: transformedCartItems,
       summary: {
         itemCount,
         subtotal,
@@ -109,7 +135,8 @@ router.post('/add', authenticate, async (req, res) => {
       });
     }
 
-    if (!product.isActive) {
+    // Check if product is active
+    if (product.status !== 'active') {
       return res.status(400).json({
         success: false,
         message: 'Product is not available'
@@ -159,7 +186,7 @@ router.post('/add', authenticate, async (req, res) => {
       artisanName: product.artisan?.name
     });
 
-    await cartItem.populate('product', 'title images price stock isActive');
+    await cartItem.populate('product', 'title images price stock status');
 
     return res.status(201).json({
       success: true,
@@ -208,7 +235,7 @@ router.put('/:id', authenticate, async (req, res) => {
 
     // Find cart item and verify ownership
     const cartItem = await Cart.findOne({ _id: req.params.id, user: user._id })
-      .populate('product', 'title images price stock isActive');
+      .populate('product', 'title images price stock status');
 
     if (!cartItem) {
       return res.status(404).json({

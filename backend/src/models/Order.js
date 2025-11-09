@@ -96,7 +96,6 @@ const orderSchema = new mongoose.Schema(
         message: 'Invalid order status',
       },
       default: 'pending',
-      index: true,
     },
 
     // Payment information

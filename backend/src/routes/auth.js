@@ -634,13 +634,17 @@ router.get('/addresses', authenticate, async (req, res) => {
  */
 router.post('/addresses', authenticate, async (req, res) => {
   try {
-    const { name, phone, addressLine, city, country, latitude, longitude, isDefault } = req.body;
+    const { name, phone, addressLine, city, postalCode, country, latitude, longitude, isDefault } = req.body;
 
-    // Validation
-    if (!name || !phone || !addressLine || !city || !country) {
+    // Validate required address fields using model method
+    const addressData = { name, phone, addressLine, city, postalCode, country };
+    const validation = User.validateAddressData(addressData);
+    
+    if (!validation.isValid) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields: name, phone, addressLine, city, country',
+        message: 'Invalid address data',
+        errors: validation.errors,
       });
     }
 
@@ -673,6 +677,7 @@ router.post('/addresses', authenticate, async (req, res) => {
       phone,
       addressLine,
       city,
+      postalCode,
       country,
       latitude: latitude || null,
       longitude: longitude || null,
@@ -710,7 +715,7 @@ router.post('/addresses', authenticate, async (req, res) => {
 router.put('/addresses/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, addressLine, city, country, latitude, longitude, isDefault } = req.body;
+    const { name, phone, addressLine, city, postalCode, country, latitude, longitude, isDefault } = req.body;
 
     let user;
 
@@ -752,6 +757,7 @@ router.put('/addresses/:id', authenticate, async (req, res) => {
     if (phone !== undefined) address.phone = phone;
     if (addressLine !== undefined) address.addressLine = addressLine;
     if (city !== undefined) address.city = city;
+    if (postalCode !== undefined) address.postalCode = postalCode;
     if (country !== undefined) address.country = country;
     if (latitude !== undefined) address.latitude = latitude;
     if (longitude !== undefined) address.longitude = longitude;

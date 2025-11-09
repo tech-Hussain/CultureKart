@@ -48,6 +48,8 @@ const OrdersPage = () => {
     switch (status?.toLowerCase()) {
       case 'pending':
         return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'confirmed':
+        return <CheckCircle className="w-5 h-5 text-blue-500" />;
       case 'processing':
         return <Package className="w-5 h-5 text-blue-500" />;
       case 'shipped':
@@ -65,6 +67,8 @@ const OrdersPage = () => {
     switch (status?.toLowerCase()) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'processing':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'shipped':
@@ -96,7 +100,9 @@ const OrdersPage = () => {
 
   const filteredOrders = filter === 'all' 
     ? orders 
-    : orders.filter(order => order.status?.toLowerCase() === filter);
+    : filter === 'pending'
+      ? orders.filter(order => ['pending', 'confirmed'].includes(order.status?.toLowerCase()))
+      : orders.filter(order => order.status?.toLowerCase() === filter);
 
   if (!user) {
     return (
@@ -235,7 +241,7 @@ const OrdersPage = () => {
                         {/* Product Info */}
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-900">{item.title || 'Product'}</h4>
-                          <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                          <p className="text-sm text-gray-600">Quantity: {item.qty || item.quantity}</p>
                           {item.variant && (
                             <p className="text-sm text-gray-500">{item.variant}</p>
                           )}
@@ -244,7 +250,7 @@ const OrdersPage = () => {
                         {/* Price */}
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">
-                            {formatPrice(item.price * item.quantity)}
+                            {formatPrice(item.price * (item.qty || item.quantity))}
                           </p>
                           <p className="text-sm text-gray-500">
                             {formatPrice(item.price)} each

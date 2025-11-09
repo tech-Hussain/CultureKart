@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, MapPin, Package, AlertCircle } from 'lucide-react';
+import { CreditCard, MapPin, Package, AlertCircle, Banknote } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/api';
@@ -13,10 +13,11 @@ import api from '../api/api';
 function CheckoutPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { cartItems, cartSummary, loading: cartLoading } = useCart();
+  const { cartItems, cartSummary, loading: cartLoading, clearCart } = useCart();
   
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' or 'cod'
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
@@ -102,19 +103,34 @@ function CheckoutPage() {
         state: selectedAddress.state || ''
       };
 
-      // Create Stripe checkout session
-      const response = await api.post('/stripe/create-checkout-session', {
-        shippingAddress
-      });
+      if (paymentMethod === 'cod') {
+        // Create COD order directly
+        const response = await api.post('/orders/cod', {
+          shippingAddress
+        });
 
-      if (response.data.success) {
-        // Redirect to Stripe checkout
-        window.location.href = response.data.url;
+        if (response.data.success) {
+          // Clear cart
+          await clearCart();
+          
+          // Navigate to success page
+          navigate(`/orders/${response.data.order._id}?cod=true`);
+        }
+      } else {
+        // Create Stripe checkout session
+        const response = await api.post('/stripe/create-checkout-session', {
+          shippingAddress
+        });
+
+        if (response.data.success) {
+          // Redirect to Stripe checkout
+          window.location.href = response.data.url;
+        }
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      console.error('Error creating checkout:', error);
       
-      alert(error.response?.data?.message || 'Failed to create checkout session. Please try again.');
+      alert(error.response?.data?.message || 'Failed to create order. Please try again.');
       
       setProcessing(false);
     }
@@ -154,16 +170,6 @@ function CheckoutPage() {
         </div>
 
         {/* Validation Warnings */}
-        {!user.emailVerified && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-yellow-800">Email Verification Required</h3>
-              <p className="text-yellow-700 text-sm">Please verify your email before proceeding with checkout</p>
-            </div>
-          </div>
-        )}
-
         {addresses.length === 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start space-x-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -240,6 +246,74 @@ function CheckoutPage() {
               </button>
             </div>
 
+            {/* Payment Method Selection */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-maroon-600" />
+                Payment Method
+              </h2>
+
+              <div className="space-y-3">
+                {/* Stripe Payment */}
+                <div
+                  onClick={() => setPaymentMethod('stripe')}
+                  className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                    paymentMethod === 'stripe'
+                      ? 'border-maroon-600 bg-maroon-50'
+                      : 'border-gray-200 hover:border-maroon-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Credit/Debit Card</h3>
+                        <p className="text-sm text-gray-600">Pay securely with Stripe</p>
+                      </div>
+                    </div>
+                    {paymentMethod === 'stripe' && (
+                      <div className="w-6 h-6 bg-maroon-600 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cash on Delivery */}
+                <div
+                  onClick={() => setPaymentMethod('cod')}
+                  className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                    paymentMethod === 'cod'
+                      ? 'border-maroon-600 bg-maroon-50'
+                      : 'border-gray-200 hover:border-maroon-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <Banknote className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Cash on Delivery</h3>
+                        <p className="text-sm text-gray-600">Pay when you receive</p>
+                      </div>
+                    </div>
+                    {paymentMethod === 'cod' && (
+                      <div className="w-6 h-6 bg-maroon-600 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Order Items */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
@@ -313,13 +387,18 @@ function CheckoutPage() {
 
               <button
                 onClick={handleProceedToPayment}
-                disabled={processing || !selectedAddress || cartItems.length === 0 || !user.emailVerified}
+                disabled={processing || !selectedAddress || cartItems.length === 0}
                 className="w-full bg-maroon-600 text-white py-3 rounded-lg font-semibold hover:bg-maroon-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
               >
                 {processing ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     <span>Processing...</span>
+                  </>
+                ) : paymentMethod === 'cod' ? (
+                  <>
+                    <Banknote className="w-5 h-5" />
+                    <span>Place Order (COD)</span>
                   </>
                 ) : (
                   <>
@@ -334,10 +413,29 @@ function CheckoutPage() {
               </p>
 
               <div className="mt-6 pt-6 border-t space-y-2 text-sm text-gray-600">
-                <p className="flex items-center">
-                  <span className="mr-2">🔒</span>
-                  Secure payment with Stripe
-                </p>
+                {paymentMethod === 'stripe' ? (
+                  <>
+                    <p className="flex items-center">
+                      <span className="mr-2">🔒</span>
+                      Secure payment with Stripe
+                    </p>
+                    <p className="flex items-center">
+                      <span className="mr-2">💳</span>
+                      All major cards accepted
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="flex items-center">
+                      <span className="mr-2">💵</span>
+                      Pay in cash when delivered
+                    </p>
+                    <p className="flex items-center">
+                      <span className="mr-2">✓</span>
+                      No advance payment needed
+                    </p>
+                  </>
+                )}
                 <p className="flex items-center">
                   <span className="mr-2">🚚</span>
                   Fast delivery
