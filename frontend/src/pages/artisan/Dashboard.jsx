@@ -2,6 +2,7 @@
  * Artisan Dashboard Home Page
  * Overview with stats, charts, and quick actions
  */
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BanknotesIcon,
@@ -29,109 +30,130 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+// Import artisan services
+import {
+  getDashboardStats,
+  getDashboardAnalytics,
+  getTopProducts,
+  formatCurrency,
+  formatPercentage,
+} from '../../services/artisanService';
+
 function ArtisanDashboard() {
-  // Sample data - will be replaced with real API data
-  const stats = [
-    {
-      title: 'Total Sales',
-      value: 'Rs 125,430',
-      change: '+12.5%',
-      isPositive: true,
-      icon: BanknotesIcon,
-      bgColor: 'from-emerald-500 to-teal-600',
-    },
-    {
-      title: 'Total Orders',
-      value: '156',
-      change: '+8.2%',
-      isPositive: true,
-      icon: ShoppingBagIcon,
-      bgColor: 'from-amber-500 to-orange-600',
-    },
-    {
-      title: 'Monthly Revenue',
-      value: 'Rs 45,200',
-      change: '+18.7%',
-      isPositive: true,
-      icon: ChartBarIcon,
-      bgColor: 'from-maroon-500 to-rose-600',
-    },
-    {
-      title: 'Store Views',
-      value: '2,341',
-      change: '-3.1%',
-      isPositive: false,
-      icon: EyeIcon,
-      bgColor: 'from-purple-500 to-indigo-600',
-    },
-  ];
+  // State management
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [topProducts, setTopProducts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const pendingOrders = 8;
+  // Fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setRefreshing(true);
+      setError('');
 
-  // Weekly sales data
-  const weeklySalesData = [
-    { day: 'Mon', sales: 4200 },
-    { day: 'Tue', sales: 5800 },
-    { day: 'Wed', sales: 4100 },
-    { day: 'Thu', sales: 7200 },
-    { day: 'Fri', sales: 6500 },
-    { day: 'Sat', sales: 8900 },
-    { day: 'Sun', sales: 9300 },
-  ];
+      // Fetch all data in parallel
+      const [statsResponse, analyticsResponse, topProductsResponse] = await Promise.all([
+        getDashboardStats(),
+        getDashboardAnalytics('week'),
+        getTopProducts(4),
+      ]);
 
-  // Product performance data
-  const productPerformanceData = [
-    { name: 'Handwoven Carpets', sales: 45, revenue: 23400 },
-    { name: 'Pottery', sales: 32, revenue: 15600 },
-    { name: 'Embroidered Shawls', sales: 28, revenue: 18900 },
-    { name: 'Wooden Crafts', sales: 21, revenue: 12300 },
-    { name: 'Jewelry', sales: 18, revenue: 9800 },
-  ];
+      setStats(statsResponse.data.data || {});
+      setAnalytics(analyticsResponse.data.data || {});
+      setTopProducts(topProductsResponse.data.data || []);
 
-  // Category distribution for pie chart
-  const categoryData = [
-    { name: 'Textiles', value: 35, color: '#D97706' },
-    { name: 'Pottery', value: 25, color: '#7C2D12' },
-    { name: 'Woodwork', value: 20, color: '#059669' },
-    { name: 'Jewelry', value: 15, color: '#9333EA' },
-    { name: 'Other', value: 5, color: '#6B7280' },
-  ];
+    } catch (err) {
+      console.error('Dashboard data fetch error:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-  // Top selling products
-  const topProducts = [
-    {
-      id: 1,
-      name: 'Traditional Kashmiri Carpet',
-      sales: 45,
-      revenue: 23400,
-      image: '🏺',
-      trend: 'up',
-    },
-    {
-      id: 2,
-      name: 'Handmade Ceramic Vase',
-      sales: 32,
-      revenue: 15600,
-      image: '🏺',
-      trend: 'up',
-    },
-    {
-      id: 3,
-      name: 'Embroidered Pashmina Shawl',
-      sales: 28,
-      revenue: 18900,
-      image: '🧣',
-      trend: 'up',
-    },
-    {
-      id: 4,
-      name: 'Walnut Wood Carved Box',
-      sales: 21,
-      revenue: 12300,
-      image: '📦',
-      trend: 'down',
-    },
-  ];
+  // Load data on component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Transform stats for display
+  const getStatsCards = () => {
+    if (!stats) return [];
+
+    return [
+      {
+        title: 'Total Sales',
+        value: stats.totalSales?.formatted || 'Rs 0',
+        change: formatPercentage(stats.totalSales?.change || 0),
+        isPositive: stats.totalSales?.isPositive !== false,
+        icon: BanknotesIcon,
+        bgColor: 'from-emerald-500 to-teal-600',
+      },
+      {
+        title: 'Total Orders',
+        value: stats.totalOrders?.formatted || '0',
+        change: formatPercentage(stats.totalOrders?.change || 0),
+        isPositive: stats.totalOrders?.isPositive !== false,
+        icon: ShoppingBagIcon,
+        bgColor: 'from-amber-500 to-orange-600',
+      },
+      {
+        title: 'Monthly Revenue',
+        value: stats.monthlyRevenue?.formatted || 'Rs 0',
+        change: formatPercentage(stats.monthlyRevenue?.change || 0),
+        isPositive: stats.monthlyRevenue?.isPositive !== false,
+        icon: ChartBarIcon,
+        bgColor: 'from-maroon-500 to-rose-600',
+      },
+      {
+        title: 'Store Views',
+        value: stats.storeViews?.formatted || '0',
+        change: formatPercentage(stats.storeViews?.change || 0),
+        isPositive: stats.storeViews?.isPositive !== false,
+        icon: EyeIcon,
+        bgColor: 'from-purple-500 to-indigo-600',
+      },
+    ];
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <div className="text-red-600 mb-4">
+          <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-red-800 mb-2">Dashboard Error</h3>
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchDashboardData}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const statsCards = getStatsCards();
+  const pendingOrders = stats?.pendingOrders || 0;
 
   return (
     <div className="space-y-6">
@@ -148,6 +170,16 @@ function ArtisanDashboard() {
 
         {/* Quick Actions */}
         <div className="flex gap-3">
+          <button
+            onClick={fetchDashboardData}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
           <Link
             to="/artisan/products/add"
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-maroon-600 to-maroon-700 text-white rounded-lg hover:from-maroon-700 hover:to-maroon-800 shadow-lg hover:shadow-xl transition-all duration-200"
@@ -194,7 +226,7 @@ function ArtisanDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsCards.map((stat, index) => (
           <div
             key={index}
             className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden"
@@ -234,7 +266,7 @@ function ArtisanDashboard() {
             Weekly Sales Trend
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={weeklySalesData}>
+            <LineChart data={analytics?.weeklySales || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="day" stroke="#6B7280" />
               <YAxis stroke="#6B7280" />
@@ -267,18 +299,18 @@ function ArtisanDashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={categoryData}
+                data={analytics?.categoryData || []}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) =>
-                  `${name} ${(percent * 100).toFixed(0)}%`
+                  percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''
                 }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {categoryData.map((entry, index) => (
+                {(analytics?.categoryData || []).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -294,7 +326,7 @@ function ArtisanDashboard() {
           Product Performance
         </h3>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={productPerformanceData}>
+          <BarChart data={analytics?.productPerformance || []}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="name" stroke="#6B7280" />
             <YAxis stroke="#6B7280" />
@@ -326,41 +358,57 @@ function ArtisanDashboard() {
           </Link>
         </div>
         <div className="space-y-4">
-          {topProducts.map((product, index) => (
-            <div
-              key={product.id}
-              className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center text-2xl">
-                {product.image}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-gray-800">{product.name}</h4>
-                <div className="flex items-center gap-4 mt-1">
-                  <span className="text-sm text-gray-600">
-                    {product.sales} sales
-                  </span>
-                  <span className="text-sm font-semibold text-emerald-600">
-                    Rs {product.revenue.toLocaleString()}
-                  </span>
+          {topProducts && topProducts.length > 0 ? (
+            topProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center text-2xl">
+                  {typeof product.image === 'string' && product.image.startsWith('http') ? (
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    product.image || '🎨'
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-800">{product.name}</h4>
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className="text-sm text-gray-600">
+                      {product.sales} sales
+                    </span>
+                    <span className="text-sm font-semibold text-emerald-600">
+                      {formatCurrency(product.revenue)}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                    product.trend === 'up'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {product.trend === 'up' ? (
+                    <ArrowTrendingUpIcon className="w-4 h-4" />
+                  ) : (
+                    <ArrowTrendingDownIcon className="w-4 h-4" />
+                  )}
+                  {index === 0 ? 'Hot' : product.trend === 'up' ? 'Rising' : 'Falling'}
                 </div>
               </div>
-              <div
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                  product.trend === 'up'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No products data available</p>
+              <Link
+                to="/artisan/products/add"
+                className="inline-block mt-2 text-maroon-600 hover:text-maroon-700 font-medium"
               >
-                {product.trend === 'up' ? (
-                  <ArrowTrendingUpIcon className="w-4 h-4" />
-                ) : (
-                  <ArrowTrendingDownIcon className="w-4 h-4" />
-                )}
-                {index === 0 ? 'Hot' : product.trend === 'up' ? 'Rising' : 'Falling'}
-              </div>
+                Add your first product →
+              </Link>
             </div>
-          ))}
+          )}
         </div>
       </div>
 

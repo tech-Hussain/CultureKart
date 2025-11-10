@@ -18,16 +18,29 @@ const requireRole = (allowedRoles) => {
 
   return async (req, res, next) => {
     try {
-      // Check if user is authenticated (should be set by verifyFirebaseToken middleware)
-      if (!req.user || !req.user.uid) {
+      // Check if user is authenticated (should be set by authentication middleware)
+      if (!req.user) {
         return res.status(401).json({
           status: 'error',
           message: 'Authentication required',
         });
       }
 
-      // Find user in database by Firebase UID
-      const user = await User.findOne({ firebaseUid: req.user.uid });
+      let user;
+
+      // Handle different authentication types
+      if (req.user.userId) {
+        // JWT authentication (email/password) - user ID is directly available
+        user = await User.findById(req.user.userId);
+      } else if (req.user.uid) {
+        // Firebase authentication - find user by Firebase UID
+        user = await User.findOne({ firebaseUid: req.user.uid });
+      } else {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Invalid authentication data',
+        });
+      }
 
       if (!user) {
         return res.status(404).json({

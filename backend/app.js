@@ -70,10 +70,10 @@ app.use('/api/v1/admin', require('./src/routes/admin'));
 app.use('/api/v1/orders', require('./src/routes/orders'));
 app.use('/api/v1/cart', require('./src/routes/cart'));
 app.use('/api/v1/stripe', require('./src/routes/stripe'));
+app.use('/api/v1/artisan', require('./src/routes/artisan'));
 
 // Additional routes to be implemented:
 // app.use('/api/v1/users', require('./src/routes/users'));
-// app.use('/api/v1/artisans', require('./src/routes/artisans'));
 
 /**
  * 404 Handler - Route not found

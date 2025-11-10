@@ -10,7 +10,9 @@ const { authenticate, getCurrentUser } = require('../middleware/authenticate');
 const { checkAdminLoginLock, logSuccessfulLogin, logFailedLogin } = require('../middleware/adminLoginRateLimit');
 const AdminLoginAttempt = require('../models/AdminLoginAttempt');
 const User = require('../models/User');
+const PendingUser = require('../models/PendingUser');
 const jwt = require('jsonwebtoken');
+const { sendVerificationOTP, sendWelcomeEmail } = require('../services/emailService');
 
 // JWT Secret - should be in .env in production
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -92,33 +94,162 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    // Check if user already exists in main User collection
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists',
+        message: 'User with this email already exists and is verified',
       });
+    }
+
+    // Check if there's already a pending registration for this email
+    const existingPendingUser = await PendingUser.findByEmail(email);
+    if (existingPendingUser) {
+      // Delete the existing pending registration to allow new one
+      await PendingUser.deleteOne({ email: email.toLowerCase() });
+      console.log(`🗑️ Removed existing pending registration for: ${email}`);
     }
 
     // Validate role
     const validRoles = ['user', 'buyer', 'artisan'];
     const userRole = role && validRoles.includes(role) ? role : 'user';
 
-    // Create new user
-    const user = new User({
+    // Get client info for security tracking
+    const clientIP = getClientIP(req);
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+
+    // Create pending user (not yet saved to main User collection)
+    const pendingUser = new PendingUser({
       email,
       password, // Will be hashed by pre-save hook
       name,
       role: userRole,
-      authProvider: 'email-password',
-      emailVerified: false,
-      isActive: true,
+      registrationIP: clientIP,
+      userAgent: userAgent,
     });
 
+    // Generate OTP for email verification
+    const otp = pendingUser.generateEmailOTP();
+
+    await pendingUser.save();
+
+    // Send OTP email
+    const emailSent = await sendVerificationOTP(email, name, otp);
+    
+    if (!emailSent) {
+      // If email fails, remove the pending user
+      await PendingUser.deleteOne({ _id: pendingUser._id });
+      console.warn(`⚠️ Failed to send OTP email to ${email}, removed pending registration`);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.',
+      });
+    }
+
+    console.log(`📧 OTP sent to ${email} for pending registration`);
+
+    // Return success message (user is not yet registered in main collection)
+    return res.status(201).json({
+      success: true,
+      message: 'Verification code sent to your email! Please verify to complete registration.',
+      requiresVerification: true,
+      pendingRegistration: {
+        email: pendingUser.email,
+        name: pendingUser.name,
+        role: pendingUser.role,
+      },
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error registering user',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/auth/verify-otp
+ * Verify email OTP for email/password users
+ * Body: { email, otp }
+ */
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    // Validate required fields
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and OTP are required',
+      });
+    }
+
+    console.log(`🔍 Verifying OTP for email: ${email}, OTP: ${otp}`);
+
+    // First, check if user already exists in main User collection
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      console.log(`❌ User already exists: ${email}`);
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists and is verified',
+      });
+    }
+
+    // Find pending user (include password field)
+    const pendingUser = await PendingUser.findOne({ email: email.toLowerCase() })
+      .select('+password');
+
+    if (!pendingUser) {
+      console.log(`❌ No pending user found for email: ${email}`);
+      return res.status(404).json({
+        success: false,
+        message: 'No pending registration found for this email. Please register again.',
+      });
+    }
+
+    console.log(`📋 Found pending user. OTP data:`, {
+      hasOTP: !!pendingUser.emailOTP,
+      hasCode: !!(pendingUser.emailOTP && pendingUser.emailOTP.code),
+      code: pendingUser.emailOTP ? pendingUser.emailOTP.code : 'N/A',
+      expires: pendingUser.emailOTP ? pendingUser.emailOTP.expires : 'N/A',
+      attempts: pendingUser.emailOTP ? pendingUser.emailOTP.attempts : 'N/A',
+      currentTime: new Date().toISOString()
+    });
+
+    // Verify OTP (don't clear expired OTP first - let verifyEmailOTP handle expiration)
+    const verificationResult = pendingUser.verifyEmailOTP(otp);
+
+    console.log(`🔐 OTP verification result:`, verificationResult);
+
+    if (!verificationResult.success) {
+      // Save failed attempt
+      await pendingUser.save();
+      
+      return res.status(400).json({
+        success: false,
+        message: verificationResult.message,
+      });
+    }
+
+    // OTP verified successfully - create actual user account
+    const userData = pendingUser.toUserData();
+    const user = new User(userData);
+    
+    // Save the new user to main User collection
     await user.save();
 
-    // Generate JWT token for email/password users
+    // Remove the pending user from PendingUser collection
+    await PendingUser.deleteOne({ _id: pendingUser._id });
+
+    // Send welcome email
+    await sendWelcomeEmail(user.email, user.name);
+
+    // Generate JWT token
     const token = jwt.sign(
       { 
         userId: user._id, 
@@ -130,35 +261,107 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Return user profile (excluding password)
+    // Return user profile
     const userProfile = {
       id: user._id,
       email: user.email,
       name: user.name,
       role: user.role,
       authProvider: user.authProvider,
-      profile: {
-        bio: user.profile.bio || '',
-        location: user.profile.location || '',
-        phone: user.profile.phone || '',
-        avatar: user.profile.avatar || '',
-      },
+      profile: user.profile,
       emailVerified: user.emailVerified,
       isActive: user.isActive,
       createdAt: user.createdAt,
     };
 
-    return res.status(201).json({
+    console.log(`✅ User registered and verified successfully: ${email}`);
+
+    return res.status(200).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Email verified successfully! Your account has been created. Welcome to CultureKart!',
       user: userProfile,
       token,
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('OTP verification error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error registering user',
+      message: 'Error verifying OTP',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/v1/auth/resend-otp
+ * Resend OTP for email verification
+ * Body: { email }
+ */
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+      });
+    }
+
+    // Check if user already exists in main User collection
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists and is verified',
+      });
+    }
+
+    // Find pending user
+    const pendingUser = await PendingUser.findOne({ email: email.toLowerCase() });
+
+    if (!pendingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'No pending registration found for this email. Please register again.',
+      });
+    }
+
+    // Check if user can request new OTP (rate limiting)
+    if (!pendingUser.canRequestNewOTP()) {
+      return res.status(429).json({
+        success: false,
+        message: 'Please wait at least 1 minute before requesting a new OTP',
+      });
+    }
+
+    // Generate new OTP
+    const otp = pendingUser.generateEmailOTP();
+    await pendingUser.save();
+
+    // Send OTP email
+    const emailSent = await sendVerificationOTP(email, pendingUser.name, otp);
+    
+    if (!emailSent) {
+      console.warn(`⚠️ Failed to resend OTP email to ${email}`);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.',
+      });
+    }
+
+    console.log(`📧 OTP resent to ${email} for pending registration`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'New verification code sent to your email address',
+    });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error resending OTP',
       error: error.message,
     });
   }
@@ -296,6 +499,19 @@ router.post('/login', checkAdminLoginLock, async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated. Please contact support.',
+      });
+    }
+
+    // Check email verification status for email/password users
+    if (user.authProvider === 'email-password' && !user.emailVerified) {
+      // Log failed attempt
+      await logFailedLogin(email, req, 'email_not_verified');
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email address before logging in. Check your inbox for the verification code.',
+        emailVerified: false,
+        requiresVerification: true,
       });
     }
 

@@ -67,15 +67,16 @@ api.interceptors.response.use(
       switch (status) {
         case 401: {
           // Unauthorized - clear token and redirect to login
-          // BUT: Don't redirect if this is a login/register attempt
+          // BUT: Don't redirect if this is a login/register/verify attempt
           const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
-                                 error.config?.url?.includes('/auth/register');
+                                 error.config?.url?.includes('/auth/register') ||
+                                 error.config?.url?.includes('/auth/verify-otp') ||
+                                 error.config?.url?.includes('/auth/verify');
           
           if (!isAuthEndpoint) {
             console.warn('⚠️ Unauthorized. Clearing authentication...');
-            localStorage.removeItem('firebaseToken');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
+            console.log('Error details:', data);
+            clearAuthToken();
             
             // Only redirect if not already on auth page
             if (!window.location.pathname.includes('/auth') && 
@@ -124,14 +125,22 @@ api.interceptors.response.use(
 
 /**
  * Helper function to set auth token
- * @param {string} token - Firebase ID token
+ * @param {string} token - Auth token (Firebase ID token or JWT)
+ * @param {string} tokenType - Type of token ('firebase' or 'jwt')
  */
-export const setAuthToken = (token) => {
+export const setAuthToken = (token, tokenType = 'firebase') => {
   if (token) {
-    localStorage.setItem('firebaseToken', token);
+    if (tokenType === 'jwt') {
+      localStorage.setItem('authToken', token);
+      localStorage.removeItem('firebaseToken'); // Clear other token type
+    } else {
+      localStorage.setItem('firebaseToken', token);
+      localStorage.removeItem('authToken'); // Clear other token type
+    }
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
     localStorage.removeItem('firebaseToken');
+    localStorage.removeItem('authToken');
     delete api.defaults.headers.common['Authorization'];
   }
 };
@@ -141,6 +150,7 @@ export const setAuthToken = (token) => {
  */
 export const clearAuthToken = () => {
   localStorage.removeItem('firebaseToken');
+  localStorage.removeItem('authToken');
   localStorage.removeItem('user');
   delete api.defaults.headers.common['Authorization'];
 };
@@ -207,6 +217,31 @@ export const updateUserProfile = async (profileData) => {
     console.error('Update profile error:', error);
     throw error;
   }
+};
+
+/**
+ * Generic API request function
+ * @param {string} url - API endpoint URL
+ * @param {string} method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param {Object} data - Request payload (for POST, PUT, PATCH requests)
+ * @param {Object} config - Additional axios config
+ * @returns {Promise} API response
+ */
+export const apiRequest = async (url, method = 'GET', data = null, config = {}) => {
+  const requestConfig = {
+    method: method.toLowerCase(),
+    url,
+    ...config,
+  };
+
+  // Add data to request if provided
+  if (data && ['post', 'put', 'patch'].includes(method.toLowerCase())) {
+    requestConfig.data = data;
+  } else if (data && method.toLowerCase() === 'get') {
+    requestConfig.params = data;
+  }
+
+  return api(requestConfig);
 };
 
 export default api;

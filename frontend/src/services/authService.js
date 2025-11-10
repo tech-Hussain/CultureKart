@@ -41,7 +41,7 @@ export const signInWithGoogle = async () => {
 /**
  * Register with email and password (Backend handles user creation)
  * @param {Object} userData - { email, password, name, role }
- * @returns {Promise<Object>} User data with JWT token
+ * @returns {Promise<Object>} Response data with requiresVerification flag
  */
 export const registerWithEmail = async (userData) => {
   try {
@@ -56,10 +56,50 @@ export const registerWithEmail = async (userData) => {
     });
 
     if (response.data.success) {
+      // Check if verification is required
+      if (response.data.requiresVerification) {
+        return {
+          requiresVerification: true,
+          pendingRegistration: response.data.pendingRegistration,
+          message: response.data.message,
+        };
+      } else {
+        // Direct registration (shouldn't happen with new flow)
+        const { user, token } = response.data;
+        setAuthToken(token, 'jwt');
+        return {
+          ...user,
+          token,
+          authProvider: 'email-password',
+        };
+      }
+    } else {
+      throw new Error(response.data.message || 'Registration failed');
+    }
+  } catch (error) {
+    console.error('Error registering with email:', error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Verify OTP for email registration
+ * @param {string} email - User's email
+ * @param {string} otp - 6-digit OTP
+ * @returns {Promise<Object>} User data with JWT token
+ */
+export const verifyEmailOTP = async (email, otp) => {
+  try {
+    const response = await api.post('/auth/verify-otp', {
+      email,
+      otp,
+    });
+
+    if (response.data.success) {
       const { user, token } = response.data;
       
       // Store JWT token
-      setAuthToken(token);
+      setAuthToken(token, 'jwt');
       
       return {
         ...user,
@@ -67,10 +107,32 @@ export const registerWithEmail = async (userData) => {
         authProvider: 'email-password',
       };
     } else {
-      throw new Error(response.data.message || 'Registration failed');
+      throw new Error(response.data.message || 'OTP verification failed');
     }
   } catch (error) {
-    console.error('Error registering with email:', error);
+    console.error('Error verifying OTP:', error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Resend OTP for email verification
+ * @param {string} email - User's email
+ * @returns {Promise<Object>} Success response
+ */
+export const resendOTP = async (email) => {
+  try {
+    const response = await api.post('/auth/resend-otp', {
+      email,
+    });
+
+    if (response.data.success) {
+      return response.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to resend OTP');
+    }
+  } catch (error) {
+    console.error('Error resending OTP:', error);
     throw error.response?.data || error;
   }
 };
@@ -93,7 +155,7 @@ export const signInWithEmail = async (email, password) => {
       const { user, token } = response.data;
       
       // Store JWT token
-      setAuthToken(token);
+      setAuthToken(token, 'jwt');
       
       return {
         ...user,

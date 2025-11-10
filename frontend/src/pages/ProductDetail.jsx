@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/api';
+import { getImageDisplayUrl, convertIpfsToHttp } from '../utils/ipfs';
 
 function ProductDetail() {
   const { id } = useParams();
@@ -75,9 +76,13 @@ function ProductDetail() {
         <div className="mb-6">
           <div className="flex gap-4 mb-4">
             <img
-              src={product.images?.[0] || ''}
+              src={getImageDisplayUrl(product.images?.[0] || '')}
               alt={product.title}
               className="w-20 h-20 object-cover rounded-lg"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.innerHTML = '<div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-2xl">🖼️</div>';
+              }}
             />
             <div>
               <h4 className="font-semibold">{product.title}</h4>
@@ -155,9 +160,28 @@ function ProductDetail() {
             <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
               {product.images && product.images.length > 0 ? (
                 <img
-                  src={product.images[selectedImage]}
+                  src={getImageDisplayUrl(product.images[selectedImage])}
                   alt={product.title}
                   className="w-full h-96 object-cover rounded-lg"
+                  onError={(e) => {
+                    const currentSrc = e.target.src;
+                    const ipfsUrl = product.images[selectedImage];
+                    
+                    // Try different IPFS gateways on error
+                    if (currentSrc.includes('ipfs.io')) {
+                      e.target.src = convertIpfsToHttp(ipfsUrl, 1); // Try gateway.ipfs.io
+                    } else if (currentSrc.includes('gateway.ipfs.io')) {
+                      e.target.src = convertIpfsToHttp(ipfsUrl, 2); // Try dweb.link
+                    } else if (currentSrc.includes('dweb.link')) {
+                      e.target.src = convertIpfsToHttp(ipfsUrl, 3); // Try cf-ipfs.com
+                    } else if (currentSrc.includes('cf-ipfs.com')) {
+                      e.target.src = convertIpfsToHttp(ipfsUrl, 4); // Try pinata as last resort
+                    } else {
+                      // All gateways failed, show fallback
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `<div class="w-full h-96 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg flex items-center justify-center text-9xl">${getCategoryEmoji(product.category)}</div>`;
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-96 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg flex items-center justify-center text-9xl">
@@ -178,9 +202,28 @@ function ProductDetail() {
                     }`}
                   >
                     <img
-                      src={image}
-                      alt={`${product.title} ${index + 1}`}
+                      src={getImageDisplayUrl(image)}
+                      alt={`${product.title} - Image ${index + 1}`}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const currentSrc = e.target.src;
+                        const ipfsUrl = image;
+                        
+                        // Try different IPFS gateways on error
+                        if (currentSrc.includes('ipfs.io')) {
+                          e.target.src = convertIpfsToHttp(ipfsUrl, 1); // Try gateway.ipfs.io
+                        } else if (currentSrc.includes('gateway.ipfs.io')) {
+                          e.target.src = convertIpfsToHttp(ipfsUrl, 2); // Try dweb.link
+                        } else if (currentSrc.includes('dweb.link')) {
+                          e.target.src = convertIpfsToHttp(ipfsUrl, 3); // Try cf-ipfs.com
+                        } else if (currentSrc.includes('cf-ipfs.com')) {
+                          e.target.src = convertIpfsToHttp(ipfsUrl, 4); // Try pinata as last resort
+                        } else {
+                          // All gateways failed, show fallback
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-xl">🖼️</div>';
+                        }
+                      }}
                     />
                   </button>
                 ))}

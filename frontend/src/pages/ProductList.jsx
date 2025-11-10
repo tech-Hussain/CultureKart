@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart, Check } from 'lucide-react';
 import api from '../api/api';
 import { useCart } from '../context/CartContext';
+import { getImageDisplayUrl, convertIpfsToHttp } from '../utils/ipfs';
 
 function ProductList() {
   const { addToCart, isInCart } = useCart();
@@ -267,9 +268,28 @@ function ProductList() {
                         <div className="relative w-full h-48 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg mb-4 overflow-hidden">
                           {product.images && product.images.length > 0 ? (
                             <img
-                              src={product.images[0]}
+                              src={getImageDisplayUrl(product.images[0])}
                               alt={product.title}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              onError={(e) => {
+                                const currentSrc = e.target.src;
+                                const ipfsUrl = product.images[0];
+                                
+                                // Try different IPFS gateways on error
+                                if (currentSrc.includes('ipfs.io')) {
+                                  e.target.src = convertIpfsToHttp(ipfsUrl, 1); // Try gateway.ipfs.io
+                                } else if (currentSrc.includes('gateway.ipfs.io')) {
+                                  e.target.src = convertIpfsToHttp(ipfsUrl, 2); // Try dweb.link
+                                } else if (currentSrc.includes('dweb.link')) {
+                                  e.target.src = convertIpfsToHttp(ipfsUrl, 3); // Try cf-ipfs.com
+                                } else if (currentSrc.includes('cf-ipfs.com')) {
+                                  e.target.src = convertIpfsToHttp(ipfsUrl, 4); // Try pinata as last resort
+                                } else {
+                                  // All gateways failed, show fallback
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.innerHTML = '<div class="flex items-center justify-center w-full h-full text-6xl">🖼️</div>';
+                                }
+                              }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-6xl">

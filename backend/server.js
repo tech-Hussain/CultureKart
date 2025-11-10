@@ -6,6 +6,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const app = require('./app');
+const { startCleanupJob } = require('./src/tasks/pendingUserCleanup');
 
 // Configuration
 const PORT = process.env.PORT || 5000;
@@ -67,6 +68,9 @@ const startServer = async () => {
   try {
     // Connect to database
     await connectDB();
+
+    // Start pending user cleanup job
+    startCleanupJob();
 
     // Start Express server
     server = app.listen(PORT, () => {

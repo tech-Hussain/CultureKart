@@ -2,7 +2,7 @@
  * Orders Management Page
  * View and manage incoming orders
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   MagnifyingGlassIcon,
   PrinterIcon,
@@ -10,87 +10,119 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
+// Import artisan services
+import {
+  getArtisanOrders,
+  updateOrderStatus,
+  getOrderStats,
+  formatCurrency,
+  formatDate,
+  getStatusColor,
+} from '../../services/artisanService';
+
 function Orders() {
+  const [orders, setOrders] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [updatingOrder, setUpdatingOrder] = useState(null);
 
-  // Sample orders data
-  const orders = [
-    {
-      id: 'ORD-1001',
-      customer: 'Ahmed Khan',
-      email: 'ahmed@example.com',
-      product: 'Traditional Kashmiri Carpet',
-      quantity: 1,
-      amount: 25000,
-      status: 'pending',
-      date: '2025-11-02',
-      address: '123 Main Street, Lahore, Pakistan',
-    },
-    {
-      id: 'ORD-1002',
-      customer: 'Fatima Ali',
-      email: 'fatima@example.com',
-      product: 'Handmade Ceramic Vase',
-      quantity: 2,
-      amount: 7000,
-      status: 'packed',
-      date: '2025-11-01',
-      address: '456 Park Road, Karachi, Pakistan',
-    },
-    {
-      id: 'ORD-1003',
-      customer: 'Hassan Raza',
-      email: 'hassan@example.com',
-      product: 'Embroidered Pashmina Shawl',
-      quantity: 1,
-      amount: 8500,
-      status: 'shipped',
-      date: '2025-10-30',
-      address: '789 Garden Avenue, Islamabad, Pakistan',
-    },
-    {
-      id: 'ORD-1004',
-      customer: 'Ayesha Malik',
-      email: 'ayesha@example.com',
-      product: 'Walnut Wood Carved Box',
-      quantity: 3,
-      amount: 12600,
-      status: 'delivered',
-      date: '2025-10-28',
-      address: '321 Valley Street, Multan, Pakistan',
-    },
-  ];
+  const statuses = ['all', 'pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
 
-  const statuses = ['all', 'pending', 'packed', 'shipped', 'delivered'];
+  // Fetch orders with current filters
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-  const filteredOrders = orders.filter(
-    (order) => filterStatus === 'all' || order.status === filterStatus
-  );
+      const params = {
+        page: currentPage,
+        limit: 10,
+        status: filterStatus,
+        search: searchTerm,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      };
 
-  const handleUpdateStatus = (orderId, newStatus) => {
-    console.log(`Update order ${orderId} to ${newStatus}`);
-    // TODO: Implement API call
+      const response = await getArtisanOrders(params);
+      setOrders(response.data.data.orders || []);
+      setPagination(response.data.data.pagination);
+
+    } catch (err) {
+      console.error('Fetch orders error:', err);
+      setError(err.response?.data?.message || 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, filterStatus, searchTerm]);
+
+  // Fetch order statistics
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await getOrderStats();
+      setStats(response.data.data || {});
+    } catch (err) {
+      console.error('Fetch stats error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      setUpdatingOrder(orderId);
+      setError('');
+
+      await updateOrderStatus(orderId, newStatus);
+
+      // Update local state
+      setOrders(orders.map(order => 
+        order._id === orderId 
+          ? { ...order, status: newStatus }
+          : order
+      ));
+
+      // Refresh stats
+      fetchStats();
+
+    } catch (err) {
+      console.error('Update status error:', err);
+      setError(err.response?.data?.message || 'Failed to update order status');
+    } finally {
+      setUpdatingOrder(null);
+    }
   };
 
   const handlePrintInvoice = (orderId) => {
-    console.log(`Print invoice for order ${orderId}`);
     // TODO: Implement print functionality
+    console.log(`Print invoice for order ${orderId}`);
   };
 
-  const handleMessageBuyer = (orderEmail) => {
-    console.log(`Message buyer at ${orderEmail}`);
+  const handleMessageBuyer = (customerEmail) => {
     // TODO: Implement messaging functionality
+    window.open(`mailto:${customerEmail}?subject=Regarding your order`);
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-amber-100 text-amber-800',
-      packed: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-emerald-100 text-emerald-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
+  if (loading && orders.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -100,35 +132,62 @@ function Orders() {
         <p className="text-gray-600 mt-1">View and manage all incoming orders</p>
       </div>
 
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-700">
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Total Orders</p>
-          <p className="text-2xl font-bold text-gray-800">{orders.length}</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {stats?.totalOrders || 0}
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
-            {orders.filter((o) => o.status === 'pending').length}
+            {stats?.statusCounts?.pending || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Shipped</p>
           <p className="text-2xl font-bold text-purple-600">
-            {orders.filter((o) => o.status === 'shipped').length}
+            {stats?.statusCounts?.shipped || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Delivered</p>
           <p className="text-2xl font-bold text-emerald-600">
-            {orders.filter((o) => o.status === 'delivered').length}
+            {stats?.statusCounts?.delivered || 0}
           </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex gap-2">
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search Orders</label>
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by order ID, customer, or product..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           {statuses.map((status) => (
             <button
               key={status}
@@ -146,83 +205,141 @@ function Orders() {
       </div>
 
       {/* Orders List */}
-      <div className="space-y-4">
-        {filteredOrders.map((order) => (
-          <div key={order.id} className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Order #{order.id}
-                </h3>
-                <p className="text-sm text-gray-600">{order.date}</p>
+      {orders && orders.length > 0 ? (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div key={order._id} className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Order #{order.orderNumber || order._id.slice(-6)}
+                  </h3>
+                  <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                </span>
               </div>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                  order.status
-                )}`}
-              >
-                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-sm text-gray-600">Customer</p>
-                <p className="font-semibold text-gray-800">{order.customer}</p>
-                <p className="text-sm text-gray-600">{order.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Product</p>
-                <p className="font-semibold text-gray-800">{order.product}</p>
-                <p className="text-sm text-gray-600">Quantity: {order.quantity}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Shipping Address</p>
-                <p className="text-sm text-gray-800">{order.address}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold text-maroon-600">
-                  Rs {order.amount.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-              {order.status !== 'delivered' && (
-                <select
-                  onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    Update Status
-                  </option>
-                  {statuses.slice(1).map((status) => (
-                    <option key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </option>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Customer</p>
+                  <p className="font-semibold text-gray-800">{order.user?.name || 'Unknown Customer'}</p>
+                  <p className="text-sm text-gray-600">{order.user?.email || 'No email'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Products</p>
+                  {order.items?.map((item, index) => (
+                    <div key={index} className="mb-2">
+                      <p className="font-semibold text-gray-800">{item.product?.title || 'Product'}</p>
+                      <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                    </div>
                   ))}
-                </select>
-              )}
-              <button
-                onClick={() => handlePrintInvoice(order.id)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <PrinterIcon className="w-5 h-5" />
-                Print Invoice
-              </button>
-              <button
-                onClick={() => handleMessageBuyer(order.email)}
-                className="flex items-center gap-2 px-4 py-2 bg-maroon-100 text-maroon-700 rounded-lg hover:bg-maroon-200 transition-colors"
-              >
-                <ChatBubbleLeftRightIcon className="w-5 h-5" />
-                Message Buyer
-              </button>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Shipping Address</p>
+                  <p className="text-sm text-gray-800">
+                    {order.shippingAddress ? 
+                      `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.country}` :
+                      'No shipping address'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Amount</p>
+                  <p className="text-2xl font-bold text-maroon-600">
+                    {formatCurrency(order.totalAmount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                  <select
+                    onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+                    defaultValue=""
+                    disabled={updatingOrder === order._id}
+                  >
+                    <option value="" disabled>
+                      {updatingOrder === order._id ? 'Updating...' : 'Update Status'}
+                    </option>
+                    {statuses.slice(1).map((status) => 
+                      status !== order.status && (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </option>
+                      )
+                    )}
+                  </select>
+                )}
+                <button
+                  onClick={() => handlePrintInvoice(order._id)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <PrinterIcon className="w-5 h-5" />
+                  Print Invoice
+                </button>
+                <button
+                  onClick={() => handleMessageBuyer(order.user?.email)}
+                  className="flex items-center gap-2 px-4 py-2 bg-maroon-100 text-maroon-700 rounded-lg hover:bg-maroon-200 transition-colors"
+                  disabled={!order.user?.email}
+                >
+                  <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                  Message Buyer
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+
+          {/* Pagination */}
+          {pagination && pagination.total > 1 && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Page {pagination.current} of {pagination.total}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(pagination.current - 1)}
+                    disabled={pagination.current === 1}
+                    className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(pagination.current + 1)}
+                    disabled={pagination.current >= pagination.total}
+                    className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">No Orders Found</h3>
+          <p className="text-gray-600 mb-6">
+            {searchTerm || filterStatus !== 'all'
+              ? 'No orders match your current filters.'
+              : 'You haven\'t received any orders yet.'}
+          </p>
+          {(searchTerm || filterStatus !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterStatus('all');
+              }}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Cultural Footer Border */}
       <div className="h-2 bg-gradient-to-r from-maroon-500 via-amber-400 to-orange-500 rounded-full" />
