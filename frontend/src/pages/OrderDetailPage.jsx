@@ -32,10 +32,16 @@ const OrderDetailPage = () => {
   const loadOrderDetails = async () => {
     try {
       setLoading(true);
+      console.log('📦 [OrderDetail] Loading order:', id);
       const response = await api.get(`/orders/${id}`);
+      console.log('✅ [OrderDetail] Order loaded successfully');
+      console.log('📊 [OrderDetail] Order data:', response.data.order);
+      console.log('🔢 [OrderDetail] Auth codes count:', response.data.order.authenticationCodes?.length || 0);
+      console.log('📋 [OrderDetail] Auth codes:', response.data.order.authenticationCodes);
       setOrder(response.data.order);
     } catch (error) {
-      console.error('Error loading order:', error);
+      console.error('❌ [OrderDetail] Error loading order:', error);
+      console.error('❌ [OrderDetail] Error response:', error.response?.data);
       setError(error.response?.data?.message || 'Failed to load order details');
     } finally {
       setLoading(false);
@@ -300,6 +306,99 @@ const OrderDetailPage = () => {
                   <p className="font-medium">{new Date(order.shippingDetails.deliveredAt).toLocaleDateString()}</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Product Authentication QR Codes */}
+        {(() => {
+          console.log('🔍 [OrderDetail] Checking auth codes...');
+          console.log('🔍 [OrderDetail] order.authenticationCodes:', order.authenticationCodes);
+          console.log('🔍 [OrderDetail] Array?', Array.isArray(order.authenticationCodes));
+          console.log('🔍 [OrderDetail] Length:', order.authenticationCodes?.length);
+          return null;
+        })()}
+        {order.authenticationCodes && order.authenticationCodes.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow-md p-6 mt-6 border-2 border-green-200">
+            <div className="flex items-center space-x-2 mb-4">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <h2 className="text-lg font-semibold text-gray-900">Product Authenticity Verification</h2>
+            </div>
+            
+            <div className="bg-white rounded-lg p-4 mb-4 border border-green-300">
+              <p className="text-sm text-gray-700 mb-2">
+                <strong className="text-green-700">🛡️ Anti-Counterfeiting Protection:</strong> Each product in this order has a unique QR code for authenticity verification.
+              </p>
+              <p className="text-sm text-gray-600">
+                The same QR code will be <strong>printed on your product package</strong> during delivery. Scan it to ensure you receive the genuine CultureKart product.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {order.authenticationCodes.map((authCode, index) => {
+                console.log(`🎫 [OrderDetail] Rendering QR code ${index + 1}:`, authCode);
+                const item = order.items?.find(i => i.product?._id === authCode.productId || i.product === authCode.productId);
+                console.log(`🎫 [OrderDetail] Found item for QR ${index + 1}:`, item);
+                return (
+                  <div key={index} className="bg-white rounded-lg shadow-md p-4 border-2 border-green-200">
+                    {/* Product Info */}
+                    <div className="mb-3">
+                      <h4 className="font-semibold text-gray-900 text-sm mb-1">{item?.title || 'Product'}</h4>
+                      <p className="text-xs text-gray-600">Authenticity Certificate</p>
+                    </div>
+
+                    {/* QR Code */}
+                    <div className="bg-white rounded-lg p-3 mb-3 flex items-center justify-center border-2 border-dashed border-gray-300">
+                      {authCode.qrCodeUrl ? (
+                        <img 
+                          src={authCode.qrCodeUrl} 
+                          alt="Authenticity QR Code" 
+                          className="w-48 h-48 object-contain"
+                        />
+                      ) : (
+                        <div className="w-48 h-48 bg-gray-100 flex items-center justify-center rounded-lg">
+                          <p className="text-gray-400 text-xs text-center">QR Code<br/>Generating...</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Verification Code */}
+                    <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                      <p className="text-xs text-gray-600 mb-1 font-semibold">Verification Code:</p>
+                      <p className="text-xs font-mono text-gray-800 break-all">{authCode.publicCode}</p>
+                    </div>
+
+                    {/* Verify Button */}
+                    {authCode.verificationUrl && (
+                      <a
+                        href={authCode.verificationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-center py-2 px-4 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        ✓ Verify Authenticity
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Important Notice */}
+            <div className="mt-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+              <h3 className="text-sm font-bold text-yellow-900 mb-2 flex items-center gap-2">
+                <span>⚠️</span> Important Security Notice
+              </h3>
+              <ul className="text-xs text-yellow-800 space-y-1">
+                <li>• The QR code on this page is for your reference only</li>
+                <li>• The <strong>SAME QR code will be printed on your product packaging</strong></li>
+                <li>• Upon delivery, scan the package QR code to verify authenticity</li>
+                <li>• If the codes don't match, <strong>DO NOT accept the delivery</strong></li>
+                <li>• Each QR code is unique and cannot be replicated by counterfeiters</li>
+                <li>• Report any discrepancies immediately to support@culturekart.com</li>
+              </ul>
             </div>
           </div>
         )}

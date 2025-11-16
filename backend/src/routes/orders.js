@@ -9,6 +9,7 @@ const Order = require('../models/Order');
 const { authenticate } = require('../middleware/authenticate');
 const User = require('../models/User');
 const Cart = require('../models/Cart');
+const { generateOrderAuthenticationCodes } = require('../services/orderAuthenticationService');
 
 /**
  * Convert IPFS URL to HTTP gateway URL
@@ -174,13 +175,38 @@ router.post('/cod', authenticate, async (req, res) => {
       shippingAddress: shippingAddress
     });
 
+    console.log('📦 Order created:', order._id);
+    console.log('🔢 Order items count:', order.items.length);
+
+    // Generate QR codes for product authentication
+    try {
+      console.log('🔄 Starting QR code generation for order:', order._id);
+      const authCodes = await generateOrderAuthenticationCodes(order._id);
+      console.log('✅ QR codes generated successfully:', authCodes.length);
+      console.log('📊 Auth codes data:', JSON.stringify(authCodes, null, 2));
+    } catch (qrError) {
+      console.error('❌ QR code generation failed:', qrError);
+      console.error('❌ Error stack:', qrError.stack);
+      // Continue - order is still valid even if QR generation fails
+    }
+
     // Clear user's cart
     await Cart.deleteMany({ user: user._id });
+
+    // Reload order with authentication codes
+    console.log('🔄 Reloading order to get auth codes...');
+    const finalOrder = await Order.findById(order._id).populate('items.product', 'title images price');
+    console.log('📊 Final order auth codes:', finalOrder.authenticationCodes?.length || 0);
+    console.log('📊 Final order data:', JSON.stringify({
+      id: finalOrder._id,
+      authCodesCount: finalOrder.authenticationCodes?.length,
+      authCodes: finalOrder.authenticationCodes
+    }, null, 2));
 
     return res.status(201).json({
       success: true,
       message: 'Order placed successfully',
-      order
+      order: transformOrderItems(finalOrder)
     });
   } catch (error) {
     console.error('Create COD order error:', error);

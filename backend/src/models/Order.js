@@ -255,6 +255,22 @@ const orderSchema = new mongoose.Schema(
         default: '',
       },
     },
+
+    // Product Authentication Codes (one per item)
+    authenticationCodes: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Product',
+        },
+        authenticationId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'ProductAuthentication',
+        },
+        publicCode: String,
+        qrCodeUrl: String,
+      },
+    ],
   },
   {
     timestamps: true, // Adds createdAt and updatedAt
@@ -272,12 +288,12 @@ orderSchema.index({ createdAt: -1 });
 
 // Virtual: Total items count
 orderSchema.virtual('itemCount').get(function () {
-  return this.items.reduce((sum, item) => sum + item.qty, 0);
+  return this.items && Array.isArray(this.items) ? this.items.reduce((sum, item) => sum + item.qty, 0) : 0;
 });
 
 // Virtual: Check if order is paid
 orderSchema.virtual('isPaid').get(function () {
-  return this.paymentInfo.status === 'completed';
+  return this.paymentInfo && this.paymentInfo.status === 'completed';
 });
 
 // Virtual: Check if order is delivered

@@ -1,48 +1,65 @@
 /**
  * Wallet Page
- * View earnings balance and transaction history
+ * View earnings balance and transaction history with real data
  */
+import { useState, useEffect } from 'react';
 import { BanknotesIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
+import { getDashboardStats, getArtisanOrders } from '../../services/artisanService';
 
 function Wallet() {
-  const balance = 125430;
-  const pendingAmount = 8500;
+  const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState(0);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [transactions, setTransactions] = useState([]);
 
-  const transactions = [
-    {
-      id: 1,
-      orderId: 'ORD-1004',
-      amount: 12600,
-      date: '2025-10-28',
-      status: 'completed',
-      type: 'sale',
-    },
-    {
-      id: 2,
-      orderId: 'ORD-1003',
-      amount: 8500,
-      date: '2025-10-30',
-      status: 'pending',
-      type: 'sale',
-    },
-    {
-      id: 3,
-      orderId: 'WD-1001',
-      amount: -50000,
-      date: '2025-10-25',
-      status: 'completed',
-      type: 'withdrawal',
-    },
-    {
-      id: 4,
-      orderId: 'ORD-1002',
-      amount: 7000,
-      date: '2025-10-24',
-      status: 'completed',
-      type: 'sale',
-    },
-  ];
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      try {
+        setLoading(true);
+        const [statsResponse, ordersResponse] = await Promise.all([
+          getDashboardStats(),
+          getArtisanOrders({ limit: 20, status: 'delivered' })
+        ]);
+
+        // Calculate available balance from delivered orders
+        const stats = statsResponse.data?.data || statsResponse.data;
+        console.log('📊 Wallet stats:', stats);
+        setBalance(stats.totalRevenue || 0);
+        
+        // Calculate pending from processing/shipped orders
+        const pendingOrders = await getArtisanOrders({ limit: 50, status: 'processing,shipped' });
+        const pending = pendingOrders.data?.data?.orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
+        setPendingAmount(pending);
+
+        // Transform orders into transactions
+        const orderTransactions = ordersResponse.data?.data?.orders?.map(order => ({
+          id: order._id,
+          orderId: order.orderNumber || order._id.slice(-8),
+          amount: order.total || 0,
+          date: order.createdAt,
+          status: order.status === 'delivered' ? 'completed' : 'pending',
+          type: 'sale'
+        })) || [];
+        
+        setTransactions(orderTransactions.slice(0, 10));
+      } catch (error) {
+        console.error('Failed to fetch wallet data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchWalletData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -85,7 +102,7 @@ function Wallet() {
           Transaction History
         </h3>
         <div className="space-y-3">
-          {transactions.map((transaction) => (
+          {transactions.length > 0 ? transactions.map((transaction) => (
             <div
               key={transaction.id}
               className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -94,8 +111,8 @@ function Wallet() {
                 <p className="font-semibold text-gray-800">
                   {transaction.type === 'withdrawal' ? 'Withdrawal' : 'Order Payment'}
                 </p>
-                <p className="text-sm text-gray-600">{transaction.orderId}</p>
-                <p className="text-xs text-gray-500">{transaction.date}</p>
+                <p className="text-sm text-gray-600">Order #{transaction.orderId}</p>
+                <p className="text-xs text-gray-500">{new Date(transaction.date).toLocaleDateString()}</p>
               </div>
               <div className="text-right">
                 <p
@@ -116,7 +133,11 @@ function Wallet() {
                 </span>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="text-center py-12 text-gray-500">
+              No transactions yet
+            </div>
+          )}
         </div>
       </div>
 

@@ -20,6 +20,10 @@ const corsOptions = {
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
+    'http://192.168.2.8:5173',
+    'http://192.168.2.8:5174',
+    `http://${process.env.NETWORK_IP || '192.168.2.8'}:5173`,
+    `http://${process.env.NETWORK_IP || '192.168.2.8'}:5174`,
   ],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -71,6 +75,8 @@ app.use('/api/v1/orders', require('./src/routes/orders'));
 app.use('/api/v1/cart', require('./src/routes/cart'));
 app.use('/api/v1/stripe', require('./src/routes/stripe'));
 app.use('/api/v1/artisan', require('./src/routes/artisan'));
+app.use('/api/v1/home', require('./src/routes/home'));
+app.use('/api/v1/verification', require('./src/routes/verification'));
 
 // Additional routes to be implemented:
 // app.use('/api/v1/users', require('./src/routes/users'));

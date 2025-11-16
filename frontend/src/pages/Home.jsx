@@ -3,92 +3,49 @@
  * Features: Hero with Pakistani motifs, featured artisans carousel, featured products grid
  */
 import { Link } from 'react-router-dom';
+
 import { useState, useEffect } from 'react';
 import ThemeBanner from '../components/ThemeBanner';
+import api from '../api/api';
+import { getImageDisplayUrl } from '../utils/ipfs';
 
 function Home() {
+    console.log('Home page loaded');
   const [currentArtisan, setCurrentArtisan] = useState(0);
+  const [featuredArtisans, setFeaturedArtisans] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Featured artisans carousel data (placeholder)
-  const featuredArtisans = [
-    {
-      id: 1,
-      name: 'Fatima Textile Arts',
-      specialty: 'Traditional Embroidery',
-      location: 'Lahore, Punjab',
-      rating: 4.9,
-      products: 42,
-    },
-    {
-      id: 2,
-      name: 'Ahmed Pottery Studio',
-      specialty: 'Blue Pottery',
-      location: 'Multan, Punjab',
-      rating: 4.8,
-      products: 38,
-    },
-    {
-      id: 3,
-      name: 'Zara Handloom',
-      specialty: 'Ajrak & Block Print',
-      location: 'Karachi, Sindh',
-      rating: 4.9,
-      products: 56,
-    },
-  ];
-
-  // Featured products data (placeholder)
-  const featuredProducts = [
-    {
-      id: 1,
-      title: 'Hand-Embroidered Phulkari Dupatta',
-      artisan: 'Fatima Textile Arts',
-      price: 89.99,
-      category: 'Textiles',
-    },
-    {
-      id: 2,
-      title: 'Blue Pottery Decorative Vase',
-      artisan: 'Ahmed Pottery Studio',
-      price: 45.50,
-      category: 'Pottery',
-    },
-    {
-      id: 3,
-      title: 'Ajrak Block Print Fabric',
-      artisan: 'Zara Handloom',
-      price: 34.99,
-      category: 'Textiles',
-    },
-    {
-      id: 4,
-      title: 'Brass Engraved Wall Hanging',
-      artisan: 'Hassan Metal Crafts',
-      price: 67.00,
-      category: 'Metal Work',
-    },
-    {
-      id: 5,
-      title: 'Handwoven Ralli Quilt',
-      artisan: 'Noor Handicrafts',
-      price: 125.00,
-      category: 'Textiles',
-    },
-    {
-      id: 6,
-      title: 'Camel Skin Lamp Shade',
-      artisan: 'Sindh Traditional Arts',
-      price: 52.75,
-      category: 'Decor',
-    },
-  ];
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      console.log('Fetching featured data using api.js...');
+      try {
+        const res = await api.get('/home/featured');
+        console.log('API response:', res);
+        const data = res.data;
+        console.log('Featured Artisans:', data.featuredArtisans);
+        console.log('Featured Products:', data.featuredProducts);
+        setFeaturedArtisans(data.featuredArtisans || []);
+        setFeaturedProducts(data.featuredProducts || []);
+      } catch (err) {
+        console.error('Error fetching featured data:', err);
+        setFeaturedArtisans([]);
+        setFeaturedProducts([]);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   // Auto-rotate artisan carousel
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentArtisan((prev) => (prev + 1) % featuredArtisans.length);
-    }, 4000);
-    return () => clearInterval(interval);
+    if (featuredArtisans.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentArtisan((prev) => (prev + 1) % featuredArtisans.length);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
   }, [featuredArtisans.length]);
 
   return (
@@ -126,64 +83,62 @@ function Home() {
           <h2 className="text-4xl font-bold text-center text-maroon-800 mb-12">
             Featured Artisans
           </h2>
-          
-          <div className="relative max-w-4xl mx-auto">
-            {/* Carousel Container */}
-            <div className="bg-gradient-to-br from-ivory-50 to-camel-50 rounded-2xl shadow-2xl p-8 border-2 border-camel-200">
-              <div className="text-center">
-                {/* Artisan Avatar Placeholder */}
-                <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-camel-300 to-maroon-300 rounded-full flex items-center justify-center text-6xl shadow-lg">
-                  {featuredArtisans[currentArtisan].specialty.includes('Embroidery') ? '🧵' :
-                   featuredArtisans[currentArtisan].specialty.includes('Pottery') ? '🏺' : '🎨'}
-                </div>
-
-                <h3 className="text-3xl font-bold text-maroon-800 mb-2">
-                  {featuredArtisans[currentArtisan].name}
-                </h3>
-                <p className="text-xl text-camel-700 font-semibold mb-2">
-                  {featuredArtisans[currentArtisan].specialty}
-                </p>
-                <p className="text-gray-600 mb-4">
-                  📍 {featuredArtisans[currentArtisan].location}
-                </p>
-                
-                <div className="flex justify-center items-center gap-6 mb-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-teal-600">
-                      ⭐ {featuredArtisans[currentArtisan].rating}
-                    </div>
-                    <div className="text-sm text-gray-600">Rating</div>
+          {loading ? (
+            <div className="text-center text-gray-500">Loading...</div>
+          ) : featuredArtisans.length === 0 ? (
+            <div className="text-center text-gray-500">No artisans found.</div>
+          ) : (
+            <div className="relative max-w-4xl mx-auto">
+              <div className="bg-gradient-to-br from-ivory-50 to-camel-50 rounded-2xl shadow-2xl p-8 border-2 border-camel-200">
+                <div className="text-center">
+                  <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-camel-300 to-maroon-300 rounded-full flex items-center justify-center text-6xl shadow-lg">
+                    {featuredArtisans[currentArtisan]?.specialty?.includes('Embroidery') ? '🧵' :
+                     featuredArtisans[currentArtisan]?.specialty?.includes('Pottery') ? '🏺' : '🎨'}
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-maroon-600">
-                      {featuredArtisans[currentArtisan].products}
+                  <h3 className="text-3xl font-bold text-maroon-800 mb-2">
+                    {featuredArtisans[currentArtisan]?.displayName}
+                  </h3>
+                  <p className="text-xl text-camel-700 font-semibold mb-2">
+                    {featuredArtisans[currentArtisan]?.specialty}
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    📍 {featuredArtisans[currentArtisan]?.location}
+                  </p>
+                  <div className="flex justify-center items-center gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-teal-600">
+                        ⭐ {featuredArtisans[currentArtisan]?.rating?.average ?? 0}
+                      </div>
+                      <div className="text-sm text-gray-600">Rating</div>
                     </div>
-                    <div className="text-sm text-gray-600">Products</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-maroon-600">
+                        {featuredArtisans[currentArtisan]?.productCount ?? 0}
+                      </div>
+                      <div className="text-sm text-gray-600">Products</div>
+                    </div>
                   </div>
+                  <Link to="/shop" className="btn-accent px-6 py-2">
+                    View Products
+                  </Link>
                 </div>
-
-                <Link to="/shop" className="btn-accent px-6 py-2">
-                  View Products
-                </Link>
+              </div>
+              <div className="flex justify-center gap-3 mt-6">
+                {featuredArtisans.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentArtisan(index)}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      index === currentArtisan 
+                        ? 'bg-maroon-600 w-8' 
+                        : 'bg-gray-300 hover:bg-camel-400'
+                    }`}
+                    aria-label={`View artisan ${index + 1}`}
+                  />
+                ))}
               </div>
             </div>
-
-            {/* Carousel Indicators */}
-            <div className="flex justify-center gap-3 mt-6">
-              {featuredArtisans.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentArtisan(index)}
-                  className={`w-3 h-3 rounded-full transition-all ${
-                    index === currentArtisan 
-                      ? 'bg-maroon-600 w-8' 
-                      : 'bg-gray-300 hover:bg-camel-400'
-                  }`}
-                  aria-label={`View artisan ${index + 1}`}
-                />
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -198,47 +153,61 @@ function Home() {
               Handpicked treasures from our master artisans
             </p>
           </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {featuredProducts.map((product) => (
-              <div 
-                key={product.id}
-                className="card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-              >
-                {/* Product Image Placeholder */}
-                <div className="w-full h-48 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg mb-4 flex items-center justify-center text-6xl">
-                  {product.category === 'Textiles' ? '🧵' :
-                   product.category === 'Pottery' ? '🏺' :
-                   product.category === 'Metal Work' ? '⚒️' : '🎨'}
-                </div>
-
-                <div>
-                  <span className="inline-block px-3 py-1 bg-teal-100 text-teal-800 text-xs font-semibold rounded-full mb-2">
-                    {product.category}
-                  </span>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {product.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    by {product.artisan}
-                  </p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-maroon-600">
-                      ${product.price}
+          {loading ? (
+            <div className="text-center text-gray-500">Loading...</div>
+          ) : featuredProducts.length === 0 ? (
+            <div className="text-center text-gray-500">No products found.</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {featuredProducts.map((product) => (
+                <div 
+                  key={product._id}
+                  className="card hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                >
+                  {/* Product Image (Pinata/IPFS or fallback) */}
+                  <div className="w-full h-48 bg-gradient-to-br from-camel-200 via-ivory-200 to-teal-200 rounded-lg mb-4 flex items-center justify-center">
+                    {product.image || product.images?.[0] ? (
+                      <img
+                        src={getImageDisplayUrl(product.image || product.images?.[0])}
+                        alt={product.title}
+                        className="w-full h-full object-cover rounded-lg"
+                        style={{ maxHeight: '11rem', maxWidth: '100%' }}
+                        onError={e => { e.target.onerror = null; e.target.src = '/palette.png'; }}
+                      />
+                    ) : (
+                      <span className="text-6xl">
+                        {product.category === 'Textiles' ? '🧵' :
+                         product.category === 'Pottery' ? '🏺' :
+                         product.category === 'Metal Work' ? '⚒️' : '🎨'}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 bg-teal-100 text-teal-800 text-xs font-semibold rounded-full mb-2">
+                      {product.category}
                     </span>
-                    <Link 
-                      to={`/product/${product.id}`}
-                      className="btn-primary px-4 py-2 text-sm"
-                    >
-                      View Details
-                    </Link>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      {product.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      by {product.artisan?.displayName || product.artisan?.name || 'Unknown'}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-maroon-600">
+                        Rs {product.price}
+                      </span>
+                      <Link 
+                        to={`/product/${product._id}`}
+                        className="btn-primary px-4 py-2 text-sm"
+                      >
+                        View Details
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* View All Products Button */}
+              ))}
+            </div>
+          )}
           <div className="text-center">
             <Link to="/shop" className="btn-secondary text-lg px-10 py-3 inline-block">
               View All Products →

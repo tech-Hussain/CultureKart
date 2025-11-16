@@ -360,7 +360,7 @@ function CheckoutForm({ orderData, onSuccess, onError }) {
             Processing Payment...
           </>
         ) : (
-          <>💳 Pay ${orderData.total.toFixed(2)}</>
+          <>💳 Pay Rs {orderData.total.toLocaleString()}</>
         )}
       </button>
 
@@ -495,7 +495,7 @@ function Checkout() {
                       </h4>
                       <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
                       <p className="font-semibold text-maroon-600">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        Rs {(item.price * item.quantity).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -506,7 +506,7 @@ function Checkout() {
               <div className="space-y-2 pt-4 border-t-2">
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal</span>
-                  <span>${orderData.total.toFixed(2)}</span>
+                  <span>Rs {orderData.total.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-gray-700">
                   <span>Shipping</span>
@@ -514,7 +514,7 @@ function Checkout() {
                 </div>
                 <div className="flex justify-between text-xl font-bold text-maroon-800 pt-2 border-t">
                   <span>Total</span>
-                  <span>${orderData.total.toFixed(2)}</span>
+                  <span>Rs {orderData.total.toLocaleString()}</span>
                 </div>
               </div>
 

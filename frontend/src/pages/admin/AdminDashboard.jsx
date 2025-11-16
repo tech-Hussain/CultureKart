@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   UsersIcon, 
   ShoppingBagIcon, 
@@ -13,9 +14,6 @@ import {
   Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   AreaChart,
   Area,
   XAxis,
@@ -25,6 +23,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { getDashboardSummary, getMonthlySales } from '../../services/adminService';
 
 /**
  * Admin Dashboard Overview
@@ -32,11 +31,67 @@ import {
  * Professional and analytical design
  */
 const AdminDashboard = () => {
-  // Sample data - Replace with real API calls
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [monthlySales, setMonthlySales] = useState([]);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [summaryRes, salesRes] = await Promise.all([
+          getDashboardSummary(),
+          getMonthlySales()
+        ]);
+
+        console.log('📊 Dashboard data:', summaryRes.data, salesRes.data);
+        
+        setSummary(summaryRes.data?.data || summaryRes.data);
+        setMonthlySales(salesRes.data?.data?.monthly || []);
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <p className="text-red-600 font-semibold">Failed to load dashboard</p>
+          <p className="text-gray-600 text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary) return null;
+
+  // Build stats array from real data
   const stats = [
     {
       title: 'Total Buyers',
-      value: '2,847',
+      value: summary.users?.total || 0,
       change: '+12.5%',
       trend: 'up',
       icon: UsersIcon,
@@ -44,119 +99,82 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Artisans',
-      value: '423',
-      change: '+8.2%',
+      value: summary.artisans?.total || 0,
+      change: summary.artisans?.approvalRate ? `${summary.artisans.approvalRate}% verified` : '0%',
       trend: 'up',
       icon: UsersIcon,
       color: 'green',
     },
     {
       title: 'Active Artisans',
-      value: '356',
-      change: '+5.4%',
-      trend: 'up',
+      value: summary.artisans?.verified || 0,
+      change: `${summary.artisans?.pending || 0} pending`,
+      trend: 'neutral',
       icon: CheckCircleIcon,
       color: 'teal',
     },
     {
       title: 'Products Listed',
-      value: '8,234',
-      change: '+18.7%',
+      value: summary.products?.total || 0,
+      change: `${summary.products?.active || 0} active`,
       trend: 'up',
       icon: ShoppingBagIcon,
       color: 'purple',
     },
     {
       title: 'Pending Approval',
-      value: '47',
-      change: '-3 today',
+      value: summary.artisans?.pending || 0,
+      change: 'Artisans',
       trend: 'neutral',
       icon: ClockIcon,
       color: 'orange',
     },
     {
       title: 'Total Orders',
-      value: '15,672',
-      change: '+23.1%',
+      value: summary.orders?.total || 0,
+      change: `${summary.orders?.completionRate || 0}% completed`,
       trend: 'up',
       icon: ShoppingCartIcon,
       color: 'indigo',
     },
     {
-      title: 'Platform Revenue',
-      value: '$234,567',
-      change: '+15.3%',
+      title: 'Revenue (30 Days)',
+      value: `Rs ${(summary.sales?.last30Days?.revenue || 0).toLocaleString()}`,
+      change: `${summary.sales?.last30Days?.orderCount || 0} orders`,
       trend: 'up',
       icon: CurrencyDollarIcon,
       color: 'emerald',
     },
     {
-      title: 'Pending Withdrawals',
-      value: '23',
-      change: '+5 today',
-      trend: 'neutral',
-      icon: ExclamationTriangleIcon,
+      title: 'Avg Order Value',
+      value: `Rs ${parseFloat(summary.sales?.last30Days?.averageOrderValue || 0).toLocaleString()}`,
+      change: 'Last 30 days',
+      trend: 'up',
+      icon: CurrencyDollarIcon,
       color: 'red',
     },
   ];
 
-  // Monthly Revenue Data
-  const revenueData = [
-    { month: 'Jan', revenue: 45000, commission: 4500 },
-    { month: 'Feb', revenue: 52000, commission: 5200 },
-    { month: 'Mar', revenue: 48000, commission: 4800 },
-    { month: 'Apr', revenue: 61000, commission: 6100 },
-    { month: 'May', revenue: 55000, commission: 5500 },
-    { month: 'Jun', revenue: 67000, commission: 6700 },
-  ];
+  // Format monthly data for charts
+  const revenueData = monthlySales.slice(-6).map(item => ({
+    month: item.month,
+    revenue: item.revenue,
+    commission: Math.round(item.revenue * 0.1), // 10% commission
+  }));
 
-  // Orders Per Month Data
-  const ordersData = [
-    { month: 'Jan', orders: 1200 },
-    { month: 'Feb', orders: 1450 },
-    { month: 'Mar', orders: 1380 },
-    { month: 'Apr', orders: 1690 },
-    { month: 'May', orders: 1550 },
-    { month: 'Jun', orders: 1820 },
-  ];
+  const ordersData = monthlySales.slice(-6).map(item => ({
+    month: item.month,
+    orders: item.orderCount,
+  }));
 
-  // Artisan vs Buyer Signup Data
-  const signupData = [
-    { month: 'Jan', artisans: 35, buyers: 280 },
-    { month: 'Feb', artisans: 42, buyers: 320 },
-    { month: 'Mar', artisans: 38, buyers: 295 },
-    { month: 'Apr', artisans: 51, buyers: 380 },
-    { month: 'May', artisans: 45, buyers: 350 },
-    { month: 'Jun', artisans: 48, buyers: 410 },
-  ];
-
-  // Category Performance Data
-  const categoryData = [
-    { name: 'Textiles', value: 2850, color: '#0088FE' },
-    { name: 'Pottery', value: 1820, color: '#00C49F' },
-    { name: 'Jewelry', value: 2150, color: '#FFBB28' },
-    { name: 'Paintings', value: 1450, color: '#FF8042' },
-    { name: 'Wood Crafts', value: 980, color: '#8884D8' },
-  ];
-
-  // Top Selling Categories
-  const topCategories = [
-    { name: 'Traditional Textiles', sales: 2850, growth: '+15%' },
-    { name: 'Handmade Jewelry', sales: 2150, growth: '+12%' },
-    { name: 'Ceramic Pottery', sales: 1820, growth: '+8%' },
-    { name: 'Wall Art', sales: 1450, growth: '+10%' },
-    { name: 'Wood Furniture', sales: 980, growth: '+5%' },
-  ];
-
-  // Real-time Activity Feed
-  const activities = [
-    { id: 1, type: 'order', message: 'New order #15672 placed', time: '2 minutes ago', status: 'success' },
-    { id: 2, type: 'product', message: 'Product pending approval from Artisan #234', time: '5 minutes ago', status: 'warning' },
-    { id: 3, type: 'withdrawal', message: 'Withdrawal request $1,250 from Artisan #156', time: '12 minutes ago', status: 'info' },
-    { id: 4, type: 'user', message: 'New artisan registered: Fatima Crafts', time: '23 minutes ago', status: 'success' },
-    { id: 5, type: 'dispute', message: 'Dispute raised for order #15641', time: '45 minutes ago', status: 'danger' },
-    { id: 6, type: 'order', message: 'Order #15670 marked as delivered', time: '1 hour ago', status: 'success' },
-  ];
+  // Recent activity from summary
+  const activities = (summary.recentActivity || []).slice(0, 6).map((order) => ({
+    id: order._id,
+    type: 'order',
+    message: `Order #${order._id.slice(-6)} - ${order.status} - Rs ${order.total?.toLocaleString()}`,
+    time: new Date(order.createdAt).toLocaleDateString(),
+    status: order.status === 'delivered' ? 'success' : order.status === 'pending' ? 'warning' : 'info',
+  }));
 
   const getColorClasses = (color) => {
     const colors = {
@@ -260,70 +278,11 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Artisan vs Buyer Signups */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">User Signups</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={signupData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#6b7280" style={{ fontSize: '12px' }} />
-              <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="artisans" stroke="#10b981" strokeWidth={2} name="Artisans" />
-              <Line type="monotone" dataKey="buyers" stroke="#3b82f6" strokeWidth={2} name="Buyers" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Category Performance Pie Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Category Performance</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top Selling Categories */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Top Categories</h3>
-          <div className="space-y-3">
-            {topCategories.map((category, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{category.name}</p>
-                  <p className="text-xs text-gray-600 mt-1">{category.sales} sales</p>
-                </div>
-                <span className="text-xs font-semibold text-green-600">{category.growth}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Real-time Activity Feed */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Real-Time Activity Feed</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Orders Activity</h3>
         <div className="space-y-3">
-          {activities.map((activity) => (
+          {activities.length > 0 ? activities.map((activity) => (
             <div
               key={activity.id}
               className={`flex items-center justify-between p-4 rounded-lg border ${getActivityColor(activity.status)}`}
@@ -333,7 +292,11 @@ const AdminDashboard = () => {
               </div>
               <span className="text-xs font-medium ml-4">{activity.time}</span>
             </div>
-          ))}
+          )) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No recent activity</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

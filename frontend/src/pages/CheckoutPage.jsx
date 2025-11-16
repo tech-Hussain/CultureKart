@@ -105,9 +105,15 @@ function CheckoutPage() {
 
       if (paymentMethod === 'cod') {
         // Create COD order directly
+        console.log('💰 [Checkout] Creating COD order...');
         const response = await api.post('/orders/cod', {
           shippingAddress
         });
+
+        console.log('✅ [Checkout] COD order created:', response.data);
+        console.log('📦 [Checkout] Order ID:', response.data.order._id);
+        console.log('🔢 [Checkout] Auth codes in response:', response.data.order.authenticationCodes?.length || 0);
+        console.log('📋 [Checkout] Auth codes data:', response.data.order.authenticationCodes);
 
         if (response.data.success) {
           // Clear cart

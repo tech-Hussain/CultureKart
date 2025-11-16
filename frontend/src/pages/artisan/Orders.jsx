@@ -9,6 +9,7 @@ import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import Swal from 'sweetalert2';
 
 // Import artisan services
 import {
@@ -95,9 +96,27 @@ function Orders() {
       // Refresh stats
       fetchStats();
 
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Status Updated!',
+        text: `Order has been marked as ${newStatus}`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+
     } catch (err) {
       console.error('Update status error:', err);
-      setError(err.response?.data?.message || 'Failed to update order status');
+      const errorMessage = err.response?.data?.message || 'Failed to update order status';
+      setError(errorMessage);
+      
+      // Show error popup
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: errorMessage,
+        confirmButtonColor: '#8B1538'
+      });
     } finally {
       setUpdatingOrder(null);
     }
@@ -146,25 +165,25 @@ function Orders() {
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Total Orders</p>
           <p className="text-2xl font-bold text-gray-800">
-            {stats?.totalOrders || 0}
+            {stats?.total || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
-            {stats?.statusCounts?.pending || 0}
+            {stats?.pending || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Shipped</p>
           <p className="text-2xl font-bold text-purple-600">
-            {stats?.statusCounts?.shipped || 0}
+            {stats?.shipped || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Delivered</p>
           <p className="text-2xl font-bold text-emerald-600">
-            {stats?.statusCounts?.delivered || 0}
+            {stats?.delivered || 0}
           </p>
         </div>
       </div>
@@ -224,65 +243,82 @@ function Orders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-sm text-gray-600">Customer</p>
-                  <p className="font-semibold text-gray-800">{order.user?.name || 'Unknown Customer'}</p>
-                  <p className="text-sm text-gray-600">{order.user?.email || 'No email'}</p>
+                  <p className="font-semibold text-gray-800">{order.buyer?.name || order.shippingAddress?.fullName || 'Unknown Customer'}</p>
+                  <p className="text-sm text-gray-600">{order.buyer?.email || 'No email'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Products</p>
                   {order.items?.map((item, index) => (
                     <div key={index} className="mb-2">
-                      <p className="font-semibold text-gray-800">{item.product?.title || 'Product'}</p>
-                      <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                      <p className="font-semibold text-gray-800">{item.product?.title || item.title || 'Product'}</p>
+                      <p className="text-sm text-gray-600">Quantity: {item.qty || item.quantity || 0}</p>
                     </div>
                   ))}
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Shipping Address</p>
                   <p className="text-sm text-gray-800">
-                    {order.shippingAddress ? 
-                      `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.country}` :
-                      'No shipping address'
-                    }
+                    {order.shippingAddress ? (
+                      <>
+                        {order.shippingAddress.fullName && <>{order.shippingAddress.fullName}<br /></>}
+                        {order.shippingAddress.phone && <>{order.shippingAddress.phone}<br /></>}
+                        {order.shippingAddress.address && <>{order.shippingAddress.address}<br /></>}
+                        {order.shippingAddress.city && order.shippingAddress.postalCode && 
+                          <>{order.shippingAddress.city}, {order.shippingAddress.postalCode}<br /></>
+                        }
+                        {order.shippingAddress.state && <>{order.shippingAddress.state}<br /></>}
+                        {order.shippingAddress.country || 'Pakistan'}
+                      </>
+                    ) : 'No shipping address'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total Amount</p>
                   <p className="text-2xl font-bold text-maroon-600">
-                    {formatCurrency(order.totalAmount)}
+                    {formatCurrency(order.total || 0)}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
                 {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                  <select
-                    onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
-                    defaultValue=""
-                    disabled={updatingOrder === order._id}
-                  >
-                    <option value="" disabled>
-                      {updatingOrder === order._id ? 'Updating...' : 'Update Status'}
-                    </option>
-                    {statuses.slice(1).map((status) => 
-                      status !== order.status && (
+                  <div className="relative">
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleUpdateStatus(order._id, e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="px-4 py-2 border-2 border-maroon-200 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500 bg-white text-gray-700 font-medium hover:border-maroon-300 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      defaultValue=""
+                      disabled={updatingOrder === order._id}
+                    >
+                      <option value="" disabled>
+                        {updatingOrder === order._id ? '⏳ Updating...' : '📝 Update Status'}
+                      </option>
+                      {statuses.slice(1).filter(status => status !== order.status && status !== 'cancelled').map((status) => (
                         <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                          {status === 'confirmed' && '✅ Confirm Order'}
+                          {status === 'processing' && '⚙️ Mark as Processing'}
+                          {status === 'packed' && '📦 Mark as Packed'}
+                          {status === 'shipped' && '🚚 Mark as Shipped'}
+                          {status === 'delivered' && '✓ Mark as Delivered'}
                         </option>
-                      )
-                    )}
-                  </select>
+                      ))}
+                    </select>
+                  </div>
                 )}
                 <button
                   onClick={() => handlePrintInvoice(order._id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-blue-200 transition-all duration-200 font-medium shadow-sm"
                 >
                   <PrinterIcon className="w-5 h-5" />
                   Print Invoice
                 </button>
                 <button
                   onClick={() => handleMessageBuyer(order.user?.email)}
-                  className="flex items-center gap-2 px-4 py-2 bg-maroon-100 text-maroon-700 rounded-lg hover:bg-maroon-200 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-maroon-50 to-maroon-100 text-maroon-700 border border-maroon-200 rounded-lg hover:from-maroon-100 hover:to-maroon-200 transition-all duration-200 font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!order.user?.email}
                 >
                   <ChatBubbleLeftRightIcon className="w-5 h-5" />

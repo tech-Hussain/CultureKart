@@ -10,6 +10,7 @@ const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/authenticate');
+const { generateOrderAuthenticationCodes } = require('../services/orderAuthenticationService');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -276,6 +277,15 @@ async function handleCheckoutSessionCompleted(session) {
     order.status = 'confirmed';
     await order.save();
 
+    // Generate QR codes for product authentication
+    try {
+      await generateOrderAuthenticationCodes(order._id);
+      console.log('✅ QR codes generated for order:', order._id);
+    } catch (qrError) {
+      console.error('❌ QR code generation failed (non-critical):', qrError.message);
+      // Continue - order is still valid even if QR generation fails
+    }
+
     // Clear cart items
     await Cart.deleteMany({ _id: { $in: cartItemIds } });
 
@@ -329,6 +339,15 @@ router.get('/session/:sessionId', authenticate, async (req, res) => {
         order.paymentInfo.paidAt = new Date();
         order.status = 'confirmed';
         await order.save();
+
+        // Generate QR codes for product authentication
+        try {
+          await generateOrderAuthenticationCodes(order._id);
+          console.log('✅ QR codes generated for order:', order._id);
+        } catch (qrError) {
+          console.error('❌ QR code generation failed (non-critical):', qrError.message);
+          // Continue - order is still valid even if QR generation fails
+        }
 
         // Clear cart
         if (session.metadata.cartItemIds) {

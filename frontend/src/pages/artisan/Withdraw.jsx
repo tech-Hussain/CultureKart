@@ -1,25 +1,129 @@
 /**
  * Withdraw Earnings Page
- * Request withdrawal of earnings
+ * Request withdrawal of earnings with real data
  */
-import { useState } from 'react';
-import { BanknotesIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { BanknotesIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { getDashboardStats } from '../../services/artisanService';
+import Swal from 'sweetalert2';
 
 function Withdraw() {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [amount, setAmount] = useState('');
   const [accountDetails, setAccountDetails] = useState({
     bankName: '',
     accountNumber: '',
     accountTitle: '',
   });
+  const [availableBalance, setAvailableBalance] = useState(0);
 
-  const availableBalance = 125430;
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        setLoading(true);
+        const response = await getDashboardStats();
+        setAvailableBalance(response.data?.totalRevenue || 0);
+      } catch (error) {
+        console.error('Failed to fetch balance:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load balance'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBalance();
+  }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Withdrawal request:', { amount, accountDetails });
-    // TODO: Implement API call
+    
+    if (parseFloat(amount) > availableBalance) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Insufficient Balance',
+        text: 'You do not have enough balance for this withdrawal'
+      });
+      return;
+    }
+
+    if (parseFloat(amount) < 1000) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Amount',
+        text: 'Minimum withdrawal amount is Rs 1,000'
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      // TODO: Implement actual withdrawal API call
+      // await createWithdrawalRequest({ amount, ...accountDetails });
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setSuccess(true);
+      Swal.fire({
+        icon: 'success',
+        title: 'Request Submitted!',
+        text: 'Your withdrawal request has been submitted successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setSuccess(false);
+        setAmount('');
+        setAccountDetails({ bankName: '', accountNumber: '', accountTitle: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Withdrawal error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to submit withdrawal request'
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maroon-600"></div>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+          <CheckCircleIcon className="w-20 h-20 text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h2>
+          <p className="text-gray-600 mb-6">
+            Your withdrawal request has been submitted successfully.
+            <br />We'll process it within 2-3 business days.
+          </p>
+          <button
+            onClick={() => setSuccess(false)}
+            className="px-6 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700"
+          >
+            Make Another Request
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -112,14 +216,23 @@ function Withdraw() {
           <p className="text-sm text-amber-800">
             <strong>Note:</strong> Withdrawal requests are processed within 2-3 business
             days. A processing fee of 2% will be deducted from the withdrawal amount.
+            <br />Minimum withdrawal: Rs 1,000
           </p>
         </div>
 
         <button
           type="submit"
-          className="w-full py-3 bg-gradient-to-r from-maroon-600 to-maroon-700 text-white rounded-lg hover:from-maroon-700 hover:to-maroon-800 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+          disabled={submitting || !amount || parseFloat(amount) > availableBalance}
+          className="w-full py-3 bg-gradient-to-r from-maroon-600 to-maroon-700 text-white rounded-lg hover:from-maroon-700 hover:to-maroon-800 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          Submit Withdrawal Request
+          {submitting ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Processing...
+            </>
+          ) : (
+            'Submit Withdrawal Request'
+          )}
         </button>
       </form>
 

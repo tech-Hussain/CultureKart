@@ -447,15 +447,14 @@ const seed = async () => {
     const users = await seedUsers();
     const artisans = await seedArtisans(users);
     const products = await seedProducts(artisans);
-    // const orders = await seedOrders(users, products); // Temporarily disabled
-    const orders = []; // Placeholder
+    const orders = await seedOrders(users, products);
 
     console.log('\n✅ Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   Users: ${users.length}`);
     console.log(`   Artisans: ${artisans.length}`);
     console.log(`   Products: ${products.length}`);
-    console.log(`   Orders: ${orders.length} (orders seeding temporarily disabled)`);
+    console.log(`   Orders: ${orders.length}`);
     console.log('\n📝 Sample credentials:');
     console.log('   Admin: admin@culturekart.com');
     console.log('   Artisan: fatima@artisan.com');

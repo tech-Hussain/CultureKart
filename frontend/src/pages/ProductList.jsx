@@ -164,7 +164,7 @@ function ProductList() {
             {/* Price Range */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Min Price ($)
+                Min Price (Rs)
               </label>
               <input
                 type="number"
@@ -176,7 +176,7 @@ function ProductList() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Max Price ($)
+                Max Price (Rs)
               </label>
               <input
                 type="number"
@@ -318,7 +318,7 @@ function ProductList() {
                           </p>
                           <div className="flex justify-between items-center">
                             <span className="text-2xl font-bold text-maroon-600">
-                              ${product.price}
+                              Rs {product.price}
                             </span>
                             {product.stock > 0 ? (
                               <span className="text-xs text-teal-600 font-semibold">

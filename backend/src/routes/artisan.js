@@ -55,31 +55,36 @@ router.get('/dashboard/stats', authenticate, requireRole(['artisan']), async (re
     const sixtyDaysAgo = new Date(today);
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     
-    // Get current month stats
-    const currentStats = await SalesAnalytics.getTotalStats(artisanId);
+    // Calculate stats directly from orders
+    const allTimeOrders = await Order.find({ 'items.artisan': artisanId });
+    const deliveredOrders = allTimeOrders.filter(o => o.status === 'delivered');
     
-    // Get last 30 days analytics for comparison
-    const lastMonthAnalytics = await SalesAnalytics.getLastMonthAnalytics(artisanId);
-    const previousMonthAnalytics = await SalesAnalytics.getAnalyticsByDateRange(
-      artisanId, 
-      sixtyDaysAgo, 
-      thirtyDaysAgo
+    console.log(`📊 All-time orders: ${allTimeOrders.length}, Delivered: ${deliveredOrders.length}`);
+    
+    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalOrders = deliveredOrders.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    
+    console.log(`💰 Total Revenue: Rs ${totalRevenue}, Total Orders: ${totalOrders}, Avg: Rs ${avgOrderValue}`);
+    
+    // Calculate current period (last 30 days)
+    const currentPeriodOrders = deliveredOrders.filter(o => 
+      new Date(o.createdAt) >= thirtyDaysAgo
     );
+    const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const currentOrders = currentPeriodOrders.length;
     
-    // Calculate current period totals
-    const currentRevenue = lastMonthAnalytics.reduce((sum, day) => sum + day.sales.revenue, 0);
-    const currentOrders = lastMonthAnalytics.reduce((sum, day) => sum + day.sales.orders, 0);
-    const currentViews = lastMonthAnalytics.reduce((sum, day) => sum + day.traffic.profileViews, 0);
-    
-    // Calculate previous period totals for comparison
-    const previousRevenue = previousMonthAnalytics.reduce((sum, day) => sum + day.sales.revenue, 0);
-    const previousOrders = previousMonthAnalytics.reduce((sum, day) => sum + day.sales.orders, 0);
-    const previousViews = previousMonthAnalytics.reduce((sum, day) => sum + day.traffic.profileViews, 0);
+    // Calculate previous period (30-60 days ago)
+    const previousPeriodOrders = deliveredOrders.filter(o => {
+      const orderDate = new Date(o.createdAt);
+      return orderDate >= sixtyDaysAgo && orderDate < thirtyDaysAgo;
+    });
+    const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const previousOrders = previousPeriodOrders.length;
     
     // Calculate percentage changes
     const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue * 100) : 0;
     const ordersChange = previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders * 100) : 0;
-    const viewsChange = previousViews > 0 ? ((currentViews - previousViews) / previousViews * 100) : 0;
     
     // Get pending orders count
     const pendingOrders = await Order.countDocuments({
@@ -93,18 +98,26 @@ router.get('/dashboard/stats', authenticate, requireRole(['artisan']), async (re
       status: 'active'
     });
     
+    // Get total products count
+    const totalProducts = await Product.countDocuments({
+      artisan: artisanId
+    });
+    
     const stats = {
+      totalRevenue: totalRevenue,
+      totalOrders: totalOrders,
+      avgOrderValue: Math.round(avgOrderValue),
+      revenueGrowth: revenueChange,
+      ordersGrowth: ordersChange,
+      avgOrderGrowth: 0,
+      totalProducts: totalProducts,
+      activeProducts: activeProducts,
+      pendingOrders: pendingOrders,
       totalSales: {
         value: currentRevenue,
         change: revenueChange,
         isPositive: revenueChange >= 0,
         formatted: `Rs ${currentRevenue.toLocaleString()}`,
-      },
-      totalOrders: {
-        value: currentOrders,
-        change: ordersChange,
-        isPositive: ordersChange >= 0,
-        formatted: currentOrders.toString(),
       },
       monthlyRevenue: {
         value: currentRevenue,
@@ -112,21 +125,14 @@ router.get('/dashboard/stats', authenticate, requireRole(['artisan']), async (re
         isPositive: revenueChange >= 0,
         formatted: `Rs ${currentRevenue.toLocaleString()}`,
       },
-      storeViews: {
-        value: currentViews,
-        change: viewsChange,
-        isPositive: viewsChange >= 0,
-        formatted: currentViews.toLocaleString(),
-      },
-      pendingOrders: pendingOrders,
-      activeProducts: activeProducts,
       allTimeStats: {
-        totalRevenue: currentStats.totalRevenue,
-        totalOrders: currentStats.totalOrders,
-        totalUnits: currentStats.totalUnits,
-        averageOrderValue: currentStats.avgOrderValue,
+        totalRevenue: totalRevenue,
+        totalOrders: totalOrders,
+        averageOrderValue: avgOrderValue,
       }
     };
+    
+    console.log(`📤 Sending stats:`, JSON.stringify(stats, null, 2));
     
     res.json({
       success: true,
@@ -162,73 +168,76 @@ router.get('/dashboard/analytics', authenticate, requireRole(['artisan']), async
     const artisanId = await getArtisanId(req.dbUser);
     const { period = 'week' } = req.query;
     
-    let analytics;
-    if (period === 'week') {
-      analytics = await SalesAnalytics.getLastWeekAnalytics(artisanId);
-    } else if (period === 'month') {
-      analytics = await SalesAnalytics.getLastMonthAnalytics(artisanId);
-    } else {
-      // Custom date range
-      const { startDate, endDate } = req.query;
-      if (startDate && endDate) {
-        analytics = await SalesAnalytics.getAnalyticsByDateRange(
-          artisanId,
-          new Date(startDate),
-          new Date(endDate)
-        );
-      } else {
-        analytics = await SalesAnalytics.getLastWeekAnalytics(artisanId);
-      }
-    }
+    // Calculate date range
+    const today = new Date();
+    const daysToGoBack = period === 'week' ? 7 : 30;
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - daysToGoBack);
     
-    // Transform data for charts
-    const weeklySales = analytics.map(day => ({
-      day: day.date.toLocaleDateString('en-US', { weekday: 'short' }),
-      date: day.date.toISOString().split('T')[0],
-      sales: day.sales.revenue,
-      orders: day.sales.orders,
-      units: day.sales.units,
+    // Get delivered orders in the period
+    const orders = await Order.find({
+      'items.artisan': artisanId,
+      status: 'delivered',
+      createdAt: { $gte: startDate }
+    }).sort({ createdAt: 1 });
+    
+    // Group orders by date
+    const salesByDate = {};
+    orders.forEach(order => {
+      const dateKey = order.createdAt.toISOString().split('T')[0];
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { revenue: 0, orders: 0, units: 0 };
+      }
+      salesByDate[dateKey].revenue += order.total || 0;
+      salesByDate[dateKey].orders += 1;
+      salesByDate[dateKey].units += order.items.reduce((sum, item) => sum + (item.qty || item.quantity || 0), 0);
+    });
+    
+    // Transform to array format for charts
+    const weeklySales = Object.entries(salesByDate).map(([date, data]) => ({
+      day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+      date: date,
+      sales: data.revenue,
+      orders: data.orders,
+      units: data.units,
     }));
     
-    // Get product performance
-    const productPerformance = await Product.aggregate([
+    // Get product performance from delivered orders
+    const productPerformance = await Order.aggregate([
       {
         $match: { 
-          artisan: new mongoose.Types.ObjectId(artisanId),
-          status: 'active'
+          'items.artisan': new mongoose.Types.ObjectId(artisanId),
+          status: 'delivered'
+        }
+      },
+      { $unwind: '$items' },
+      {
+        $match: {
+          'items.artisan': new mongoose.Types.ObjectId(artisanId)
         }
       },
       {
-        $lookup: {
-          from: 'orders',
-          localField: '_id',
-          foreignField: 'items.product',
-          as: 'orders'
+        $group: {
+          _id: '$items.product',
+          name: { $first: '$items.title' },
+          sales: { $sum: '$items.qty' },
+          revenue: { $sum: { $multiply: ['$items.price', '$items.qty'] } },
+          category: { $first: '$items.category' }
         }
       },
-      {
-        $addFields: {
-          sales: { $size: '$orders' },
-          revenue: { $multiply: ['$soldCount', '$price'] }
-        }
-      },
-      {
-        $sort: { soldCount: -1 }
-      },
-      {
-        $limit: 5
-      },
+      { $sort: { sales: -1 } },
+      { $limit: 5 },
       {
         $project: {
-          name: '$title',
-          sales: '$soldCount',
-          revenue: '$revenue',
-          category: '$category'
+          name: 1,
+          sales: 1,
+          revenue: 1,
+          category: 1
         }
       }
     ]);
     
-    // Get category distribution
+    // Get category distribution from products
     const categories = await Product.aggregate([
       {
         $match: { 
@@ -768,6 +777,70 @@ router.get('/orders', authenticate, requireRole(['artisan']), async (req, res) =
 });
 
 /**
+ * GET /api/v1/artisan/orders/stats
+ * Get order statistics for artisan dashboard
+ */
+router.get('/orders/stats', authenticate, requireRole(['artisan']), async (req, res) => {
+  try {
+    const artisanId = await getArtisanId(req.dbUser);
+    console.log('📊 Getting order stats for artisan:', artisanId);
+    
+    // Get order status counts
+    const statusStats = await Order.aggregate([
+      {
+        $match: { 'items.artisan': new mongoose.Types.ObjectId(artisanId) }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    console.log('📈 Aggregation result:', statusStats);
+    
+    // Convert to object format
+    const stats = {
+      pending: 0,
+      confirmed: 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0,
+      refunded: 0
+    };
+    
+    statusStats.forEach(stat => {
+      if (stats.hasOwnProperty(stat._id)) {
+        stats[stat._id] = stat.count;
+      }
+    });
+    
+    // Calculate total orders
+    const totalOrders = Object.values(stats).reduce((sum, count) => sum + count, 0);
+    
+    console.log('✅ Final stats:', { ...stats, total: totalOrders });
+    
+    res.json({
+      success: true,
+      data: {
+        ...stats,
+        total: totalOrders
+      }
+    });
+    
+  } catch (error) {
+    console.error('Get order stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching order statistics',
+      error: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/v1/artisan/orders/:id
  * Get single order details for authenticated artisan
  */
@@ -816,7 +889,7 @@ router.get('/orders/:id', authenticate, requireRole(['artisan']), async (req, re
 
 /**
  * PATCH /api/v1/artisan/orders/:id/status
- * Update order status (artisan can only update processing/shipped status)
+ * Update order status
  */
 router.patch('/orders/:id/status', authenticate, requireRole(['artisan']), async (req, res) => {
   try {
@@ -825,11 +898,11 @@ router.patch('/orders/:id/status', authenticate, requireRole(['artisan']), async
     const { status, notes = '' } = req.body;
     
     // Validate status transitions artisan can make
-    const allowedStatuses = ['processing', 'shipped'];
+    const allowedStatuses = ['confirmed', 'processing', 'packed', 'shipped', 'delivered'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Artisans can only set orders to processing or shipped'
+        message: 'Invalid status. Allowed statuses: confirmed, processing, packed, shipped, delivered'
       });
     }
     
@@ -846,25 +919,25 @@ router.patch('/orders/:id/status', authenticate, requireRole(['artisan']), async
       });
     }
     
-    // Check if order can be updated
-    if (!['confirmed', 'processing'].includes(order.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order cannot be updated in current status'
-      });
-    }
-    
     // Update order status
     order.status = status;
     if (notes) {
-      order.internalNotes = `${order.internalNotes}\n[${new Date().toISOString()}] Artisan note: ${notes}`.trim();
+      order.internalNotes = `${order.internalNotes || ''}\n[${new Date().toISOString()}] Artisan note: ${notes}`.trim();
     }
     
     if (status === 'shipped') {
+      order.shippingDetails = order.shippingDetails || {};
       order.shippingDetails.shippedAt = new Date();
     }
     
+    if (status === 'delivered') {
+      order.shippingDetails = order.shippingDetails || {};
+      order.shippingDetails.deliveredAt = new Date();
+    }
+    
     await order.save();
+    
+    console.log(`✅ Order ${id} status updated to: ${status}`);
     
     res.json({
       success: true,
@@ -877,65 +950,6 @@ router.patch('/orders/:id/status', authenticate, requireRole(['artisan']), async
     res.status(500).json({
       success: false,
       message: 'Error updating order status',
-      error: error.message,
-    });
-  }
-});
-
-/**
- * GET /api/v1/artisan/orders/stats
- * Get order statistics for artisan dashboard
- */
-router.get('/orders/stats', authenticate, requireRole(['artisan']), async (req, res) => {
-  try {
-    const artisanId = await getArtisanId(req.dbUser);
-    
-    // Get order status counts
-    const statusStats = await Order.aggregate([
-      {
-        $match: { 'items.artisan': new mongoose.Types.ObjectId(artisanId) }
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    // Convert to object format
-    const stats = {
-      pending: 0,
-      confirmed: 0,
-      processing: 0,
-      shipped: 0,
-      delivered: 0,
-      cancelled: 0,
-      refunded: 0
-    };
-    
-    statusStats.forEach(stat => {
-      if (stats.hasOwnProperty(stat._id)) {
-        stats[stat._id] = stat.count;
-      }
-    });
-    
-    // Calculate total orders
-    const totalOrders = Object.values(stats).reduce((sum, count) => sum + count, 0);
-    
-    res.json({
-      success: true,
-      data: {
-        ...stats,
-        total: totalOrders
-      }
-    });
-    
-  } catch (error) {
-    console.error('Get order stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching order statistics',
       error: error.message,
     });
   }

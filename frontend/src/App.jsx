@@ -34,6 +34,9 @@ import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import CheckoutFailedPage from './pages/CheckoutFailedPage';
 
+// Verification Page
+import ProductVerification from './pages/ProductVerification';
+
 // Artisan Dashboard Components
 import DashboardLayout from './components/artisan/DashboardLayout';
 import ArtisanDashboard from './pages/artisan/Dashboard';
@@ -111,6 +114,9 @@ function AppContent() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth" element={<Login />} />
+            
+            {/* Product Verification - Public Route */}
+            <Route path="/verify/:code" element={<ProductVerification />} />
             
             {/* Admin Login - Separate route */}
             <Route path="/admin/login" element={<AdminLogin />} />

@@ -10,13 +10,13 @@ const User = require('../models/User');
 const Artisan = require('../models/Artisan');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
-const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
+const { authenticate } = require('../middleware/authenticate');
 const { requireAdmin } = require('../middleware/requireRole');
 
 const router = express.Router();
 
 // All admin routes require authentication and admin role
-router.use(verifyFirebaseToken);
+router.use(authenticate);
 router.use(requireAdmin);
 
 /**
@@ -88,12 +88,13 @@ router.get('/summary', async (req, res) => {
     // Extract sales data
     const salesData = salesLast30Days[0] || { totalRevenue: 0, orderCount: 0 };
 
-    // Get recent activity (last 5 orders)
+    // Get recent activity (last 5 orders) - don't select items to avoid virtual field issues
     const recentOrders = await Order.find()
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('buyer', 'name email')
-      .select('_id total status createdAt paymentInfo.method');
+      .select('_id total status createdAt paymentInfo buyer')
+      .lean(); // Use lean() to get plain JavaScript objects without virtuals
 
     const summary = {
       users: {
@@ -127,6 +128,7 @@ router.get('/summary', async (req, res) => {
     };
 
     console.log('✅ Dashboard summary fetched successfully');
+    console.log('📊 Actual summary data:', JSON.stringify(summary, null, 2));
 
     res.status(200).json({
       status: 'success',
@@ -520,6 +522,211 @@ router.get('/artisans', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch artisans',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/v1/admin/users
+ * Get all users with pagination and filters
+ */
+router.get('/users', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, role, status, search } = req.query;
+
+    const filter = {};
+
+    // Filter by role
+    if (role && role !== 'all') {
+      filter.role = role;
+    }
+
+    // Filter by status
+    if (status === 'active') {
+      filter.isActive = true;
+    } else if (status === 'inactive') {
+      filter.isActive = false;
+    }
+
+    // Search by name or email
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select('name email role isActive createdAt profile emailVerified authProvider')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    // Get artisan details for users with artisan role
+    const userIds = users.map(u => u._id);
+    const artisans = await Artisan.find({ user: { $in: userIds } })
+      .select('user displayName location isVerified')
+      .lean();
+
+    const artisanMap = artisans.reduce((map, artisan) => {
+      map[artisan.user.toString()] = artisan;
+      return map;
+    }, {});
+
+    // Enrich users with artisan data if available
+    const enrichedUsers = users.map(user => ({
+      ...user,
+      artisan: artisanMap[user._id.toString()] || null,
+    }));
+
+    res.status(200).json({
+      status: 'success',
+      results: enrichedUsers.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+      data: { users: enrichedUsers },
+    });
+  } catch (error) {
+    console.error('❌ Error fetching users:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch users',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/v1/admin/products
+ * Get all products with pagination and filters
+ */
+router.get('/products', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, category, search } = req.query;
+
+    const filter = {};
+
+    // Filter by status
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    // Filter by category
+    if (category && category !== 'all') {
+      filter.category = category;
+    }
+
+    // Search by title or artisan name
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [products, total] = await Promise.all([
+      Product.find(filter)
+        .populate('artisan', 'displayName location')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Product.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      results: products.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+      data: { products },
+    });
+  } catch (error) {
+    console.error('❌ Error fetching products:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch products',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/v1/admin/orders
+ * Get all orders with pagination and filters
+ */
+router.get('/orders', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, search } = req.query;
+
+    const filter = {};
+
+    // Filter by status
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    // Search by order ID or buyer name
+    if (search) {
+      // If search is a number, search by order ID
+      if (!isNaN(search)) {
+        filter._id = search;
+      }
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate('buyer', 'name email')
+        .populate({
+          path: 'items.product',
+          select: 'title',
+          populate: {
+            path: 'artisan',
+            select: 'displayName',
+          },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Order.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+      data: { orders },
+    });
+  } catch (error) {
+    console.error('❌ Error fetching orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch orders',
       error: error.message,
     });
   }

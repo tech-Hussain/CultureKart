@@ -73,11 +73,12 @@ const startServer = async () => {
     startCleanupJob();
 
     // Start Express server
-    server = app.listen(PORT, () => {
+    server = app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 CultureKart API Server');
       console.log(`📡 Server running in ${process.env.NODE_ENV || 'development'} mode`);
       console.log(`🌐 Listening on port ${PORT}`);
-      console.log(`🔗 API Base URL: http://localhost:${PORT}/api/v1`);
+      console.log(`🔗 Local: http://localhost:${PORT}/api/v1`);
+      console.log(`📱 Network: http://192.168.2.8:${PORT}/api/v1`);
       console.log(`💚 Health Check: http://localhost:${PORT}/api/v1/health`);
     });
   } catch (error) {
