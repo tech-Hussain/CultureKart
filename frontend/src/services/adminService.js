@@ -8,7 +8,10 @@ import { apiRequest } from '../api/api';
  * Get dashboard summary statistics
  */
 export const getDashboardSummary = async () => {
-  return apiRequest('/admin/summary', 'GET');
+  console.log('📊 Fetching dashboard summary...');
+  const response = await apiRequest('/admin/summary', 'GET');
+  console.log('✅ Dashboard summary response:', response.data);
+  return response;
 };
 
 /**
@@ -29,7 +32,11 @@ export const getTopProducts = async () => {
  * Get all artisans with filters
  */
 export const getArtisans = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
+  // Remove undefined values from params
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
   return apiRequest(`/admin/artisans${queryString ? `?${queryString}` : ''}`, 'GET');
 };
 
@@ -51,24 +58,45 @@ export const rejectArtisan = async (artisanId) => {
  * Get all users with filters
  */
 export const getUsers = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('👥 Fetching users with params:', params);
+  // Remove undefined values from params
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
+  const response = await apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('✅ Users response:', response.data);
+  return response;
 };
 
 /**
  * Get all products with filters
  */
 export const getProducts = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/admin/products${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('📦 Fetching products with params:', params);
+  // Remove undefined values from params
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
+  const response = await apiRequest(`/admin/products${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('✅ Products response:', response.data);
+  return response;
 };
 
 /**
  * Get all orders with filters
  */
 export const getOrders = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/admin/orders${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('📋 Fetching orders with params:', params);
+  // Remove undefined values from params
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
+  const response = await apiRequest(`/admin/orders${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('✅ Orders response:', response.data);
+  return response;
 };
 
 /**

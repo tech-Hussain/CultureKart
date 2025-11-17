@@ -11,6 +11,7 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/authenticate');
 const { generateOrderAuthenticationCodes } = require('../services/orderAuthenticationService');
+const { sendOrderPlacedEmail } = require('../services/paymentEscrowService');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -277,6 +278,20 @@ async function handleCheckoutSessionCompleted(session) {
     order.status = 'confirmed';
     await order.save();
 
+    // Populate order details for email
+    await order.populate('buyer', 'name email');
+    await order.populate('items.product', 'name');
+    await order.populate('items.artisan', 'name');
+
+    // Send order confirmation email to buyer
+    try {
+      await sendOrderPlacedEmail(order);
+      console.log('✅ Order confirmation email sent for order:', order._id);
+    } catch (emailError) {
+      console.error('❌ Order confirmation email failed (non-critical):', emailError.message);
+      // Continue - order is still valid even if email fails
+    }
+
     // Generate QR codes for product authentication
     try {
       await generateOrderAuthenticationCodes(order._id);
@@ -339,6 +354,20 @@ router.get('/session/:sessionId', authenticate, async (req, res) => {
         order.paymentInfo.paidAt = new Date();
         order.status = 'confirmed';
         await order.save();
+
+        // Populate order details for email
+        await order.populate('buyer', 'name email');
+        await order.populate('items.product', 'name');
+        await order.populate('items.artisan', 'name');
+
+        // Send order confirmation email to buyer
+        try {
+          await sendOrderPlacedEmail(order);
+          console.log('✅ Order confirmation email sent for order:', order._id);
+        } catch (emailError) {
+          console.error('❌ Order confirmation email failed (non-critical):', emailError.message);
+          // Continue - order is still valid even if email fails
+        }
 
         // Generate QR codes for product authentication
         try {

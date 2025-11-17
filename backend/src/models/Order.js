@@ -202,6 +202,69 @@ const orderSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+      // Delivery confirmation by artisan
+      deliveryConfirmedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      deliveryConfirmedAt: {
+        type: Date,
+        default: null,
+      },
+      buyerNotifiedOfDelivery: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    // Payment escrow and commission tracking
+    paymentDistribution: {
+      // Total held in escrow
+      escrowAmount: {
+        type: Number,
+        default: 0,
+      },
+      // Has escrow been released?
+      escrowReleased: {
+        type: Boolean,
+        default: false,
+      },
+      escrowReleasedAt: {
+        type: Date,
+        default: null,
+      },
+      // Artisan payout (90%)
+      artisanPayout: {
+        amount: {
+          type: Number,
+          default: 0,
+        },
+        paid: {
+          type: Boolean,
+          default: false,
+        },
+        paidAt: {
+          type: Date,
+          default: null,
+        },
+        stripeTransferId: String,
+      },
+      // Platform commission (10%)
+      platformCommission: {
+        amount: {
+          type: Number,
+          default: 0,
+        },
+        collected: {
+          type: Boolean,
+          default: false,
+        },
+        collectedAt: {
+          type: Date,
+          default: null,
+        },
+      },
     },
 
     // Order notes (from buyer or admin)

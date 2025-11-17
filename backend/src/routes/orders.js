@@ -10,6 +10,7 @@ const { authenticate } = require('../middleware/authenticate');
 const User = require('../models/User');
 const Cart = require('../models/Cart');
 const { generateOrderAuthenticationCodes } = require('../services/orderAuthenticationService');
+const { sendOrderPlacedEmail } = require('../services/paymentEscrowService');
 
 /**
  * Convert IPFS URL to HTTP gateway URL
@@ -195,13 +196,25 @@ router.post('/cod', authenticate, async (req, res) => {
 
     // Reload order with authentication codes
     console.log('🔄 Reloading order to get auth codes...');
-    const finalOrder = await Order.findById(order._id).populate('items.product', 'title images price');
+    const finalOrder = await Order.findById(order._id)
+      .populate('items.product', 'title images price')
+      .populate('buyer', 'name email')
+      .populate('items.artisan', 'name');
     console.log('📊 Final order auth codes:', finalOrder.authenticationCodes?.length || 0);
     console.log('📊 Final order data:', JSON.stringify({
       id: finalOrder._id,
       authCodesCount: finalOrder.authenticationCodes?.length,
       authCodes: finalOrder.authenticationCodes
     }, null, 2));
+
+    // Send order confirmation email
+    try {
+      await sendOrderPlacedEmail(finalOrder);
+      console.log('✅ Order confirmation email sent for COD order:', finalOrder._id);
+    } catch (emailError) {
+      console.error('❌ Order confirmation email failed (non-critical):', emailError.message);
+      // Continue - order is still valid even if email fails
+    }
 
     return res.status(201).json({
       success: true,

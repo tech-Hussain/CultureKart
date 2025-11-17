@@ -158,30 +158,30 @@ function ProductDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-ivory-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+      <div className="container mx-auto px-4 py-6">
         {/* Breadcrumb */}
-        <div className="mb-6 text-sm text-gray-600">
-          <Link to="/" className="hover:text-camel-600">Home</Link>
-          {' > '}
-          <Link to="/shop" className="hover:text-camel-600">Shop</Link>
-          {' > '}
-          <span className="text-gray-900">{product.title}</span>
+        <div className="mb-4 text-sm text-gray-600 flex items-center gap-2">
+          <Link to="/" className="hover:text-maroon-700 transition-colors">Home</Link>
+          <span className="text-gray-400">/</span>
+          <Link to="/shop" className="hover:text-maroon-700 transition-colors">Shop</Link>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-900 font-medium">{product.title}</span>
         </div>
 
         {/* Product Main Section */}
-        <div className="grid lg:grid-cols-2 gap-12 mb-16">
+        <div className="grid lg:grid-cols-2 gap-8 mb-12">
           {/* Image Gallery */}
-          <div className="space-y-4">
-            {/* Main Image */}
+          <div className="space-y-3">
+            {/* Main Image with Cultural Border */}
             <div className="relative group">
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden border-4 border-double border-maroon-300">
                 {product.images && product.images.length > 0 ? (
                   <div className="relative">
                     <img
                       src={getImageDisplayUrl(product.images[selectedImage])}
                       alt={product.title}
-                      className="w-full h-64 md:h-80 lg:h-[400px] object-cover cursor-zoom-in transition-transform duration-300 hover:scale-105"
+                      className="w-full h-56 md:h-72 lg:h-96 object-cover cursor-zoom-in transition-transform duration-300 hover:scale-105"
                       onClick={() => setShowImageModal(true)}
                       onError={(e) => {
                         const currentSrc = e.target.src;
@@ -203,40 +203,40 @@ function ProductDetail() {
                       }}
                     />
                     
-                    {/* Image overlay with zoom hint */}
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <div className="bg-white bg-opacity-90 rounded-full p-3 transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {/* Image overlay - Simplified */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="bg-white rounded-full p-2">
+                        <svg className="w-5 h-5 text-maroon-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
                         </svg>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full h-64 md:h-80 lg:h-[400px] bg-gradient-to-br from-orange-200 via-pink-200 to-purple-200 rounded-2xl flex items-center justify-center text-6xl">
+                  <div className="w-full h-56 md:h-72 lg:h-96 bg-gradient-to-br from-amber-200 via-orange-200 to-rose-200 rounded flex items-center justify-center text-5xl">
                     {getCategoryEmoji(product.category)}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Thumbnail Images */}
+            {/* Thumbnail Images - Smaller */}
             {product.images && product.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 {product.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all duration-300 ${
+                    className={`flex-shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-md overflow-hidden border-2 transition-all duration-200 ${
                       selectedImage === index 
-                        ? 'border-orange-500 shadow-lg scale-105' 
-                        : 'border-gray-200 hover:border-orange-300 hover:shadow-md'
+                        ? 'border-maroon-600 shadow-md scale-105' 
+                        : 'border-gray-300 hover:border-maroon-400'
                     }`}
                   >
                     <img
                       src={getImageDisplayUrl(image)}
                       alt={`${product.title} - Image ${index + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                      className="w-full h-full object-cover"
                       onError={(e) => {
                         const currentSrc = e.target.src;
                         const ipfsUrl = image;
@@ -262,98 +262,87 @@ function ProductDetail() {
           </div>
 
           {/* Product Info */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-              {/* Category Badge */}
-              <div className="flex flex-wrap items-center gap-3 mb-6">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-100 to-pink-100 text-orange-800 text-sm font-semibold rounded-full border border-orange-200">
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-maroon-600">
+              {/* Category & Badges */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-100 to-orange-100 text-maroon-800 text-xs font-semibold rounded-full border border-amber-300">
                   {getCategoryEmoji(product.category)} {product.category}
                 </span>
                 {product.rating && product.rating.average > 0 && (
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    <span>⭐</span>
-                    <span className="text-sm font-medium text-gray-700">
+                  <div className="flex items-center gap-1 text-amber-500">
+                    <span className="text-sm">⭐</span>
+                    <span className="text-xs font-medium text-gray-700">
                       {product.rating.average.toFixed(1)} ({product.rating.count})
                     </span>
                   </div>
                 )}
-                {/* Authenticity Badge */}
                 {(product.ipfsMetadataHash || product.blockchainTxn) && (
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-sm font-semibold rounded-full border border-green-300">
-                    ✓ Authenticity Verified
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-100 to-green-100 text-green-800 text-xs font-semibold rounded-full border border-green-300">
+                    ✓ Verified
                   </span>
                 )}
               </div>
 
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 leading-tight">
                 {product.title}
               </h1>
 
-              {/* Artisan Info */}
-              <div className="flex items-center gap-3 mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-xl text-white shadow-lg">
+              {/* Artisan Info - Compact */}
+              <div className="flex items-center gap-3 mb-4 p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200">
+                <div className="w-10 h-10 bg-gradient-to-br from-maroon-500 to-orange-500 rounded-full flex items-center justify-center text-lg text-white shadow">
                   👨‍🎨
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 font-medium">Handcrafted by</p>
-                  <p className="font-bold text-base text-gray-900">
+                  <p className="text-xs text-gray-600">Handcrafted by</p>
+                  <p className="font-bold text-sm text-gray-900">
                     {product.artisan?.displayName || 'Master Artisan'}
                   </p>
                   {product.artisan?.location && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <span>📍</span> {product.artisan.location}
-                    </p>
-                  )}
-                  {product.artisan?.verified && (
-                    <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
-                      <span>✓</span> Verified Artisan
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      📍 {product.artisan.location}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* Price */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+              {/* Price - Compact */}
+              <div className="mb-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-300">
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-3xl md:text-4xl font-bold text-green-700">
+                  <span className="text-3xl font-bold text-emerald-700">
                     Rs {product.price}
                   </span>
-                  <span className="text-base text-gray-600 font-medium">{product.currency}</span>
+                  <span className="text-sm text-gray-600">{product.currency}</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
                   {product.stock > 0 ? (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 font-semibold rounded-full text-sm">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-800 font-semibold rounded-full text-xs">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                       {product.stock} in stock
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 font-semibold rounded-full text-sm">
-                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-800 font-semibold rounded-full text-xs">
                       Out of stock
                     </span>
                   )}
                   {product.views > 0 && (
-                    <span className="text-sm text-gray-600">
-                      👁️ {product.views} views
-                    </span>
+                    <span className="text-xs text-gray-600">👁️ {product.views}</span>
                   )}
                   {product.soldCount > 0 && (
-                    <span className="text-sm text-gray-600">
-                      🛒 {product.soldCount} sold
-                    </span>
+                    <span className="text-xs text-gray-600">🛒 {product.soldCount} sold</span>
                   )}
                 </div>
               </div>
 
-              {/* Quantity Selector */}
-              <div className="mb-6">
-                <label className="block text-base font-semibold text-gray-900 mb-2">
+              {/* Quantity Selector - Compact */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Quantity
                 </label>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-base transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-md font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={quantity <= 1}
                   >
                     −
@@ -362,37 +351,34 @@ function ProductDetail() {
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock, parseInt(e.target.value) || 1)))}
-                    className="w-16 h-10 text-center text-base font-bold border-2 border-gray-200 rounded-lg focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200"
+                    className="w-14 h-9 text-center text-sm font-bold border-2 border-gray-200 rounded-md focus:border-maroon-400 focus:ring-1 focus:ring-maroon-200"
                     min="1"
                     max={product.stock}
                   />
                   <button
                     onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-base transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-md font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={quantity >= product.stock}
                   >
                     +
                   </button>
-                  <span className="text-gray-600 font-medium">
+                  <span className="text-sm text-gray-600 ml-2">
                     Total: <span className="font-bold text-gray-900">Rs {(product.price * quantity).toLocaleString()}</span>
                   </span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-3">
-                {/* Add to Cart Button */}
+              <div className="space-y-2.5">
                 <button
                   onClick={handleAddToCart}
                   disabled={product.stock === 0 || addingToCart}
-                  className={`btn-secondary w-full text-base py-3 flex items-center justify-center gap-2 transition-all duration-200 ${
+                  className={`w-full text-sm py-2.5 px-4 rounded-md font-semibold transition-all border-2 flex items-center justify-center gap-2 ${
                     product.stock === 0 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'hover:shadow-md hover:scale-[1.01]'
-                  } ${
-                    inCart 
-                      ? 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200' 
-                      : ''
+                      ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300 text-gray-500' 
+                      : inCart
+                      ? 'bg-green-50 border-green-400 text-green-800 hover:bg-green-100'
+                      : 'bg-white border-maroon-700 text-maroon-700 hover:bg-maroon-50'
                   }`}
                 >
                   {addingToCart ? (
@@ -411,49 +397,84 @@ function ProductDetail() {
                   )}
                 </button>
 
-                {/* Buy Now Button */}
                 <button
                   onClick={handleBuyNow}
                   disabled={product.stock === 0 || addingToCart}
-                  className={`btn-primary w-full text-base py-3 flex items-center justify-center gap-2 transition-all duration-200 ${
+                  className={`w-full text-sm py-2.5 px-4 rounded-md font-semibold transition-all border-2 flex items-center justify-center gap-2 ${
                     product.stock === 0 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'hover:shadow-md hover:scale-[1.01]'
+                      ? 'opacity-50 cursor-not-allowed bg-gray-400 border-gray-400 text-white' 
+                      : 'bg-maroon-800 border-maroon-800 text-white hover:bg-maroon-900'
                   }`}
                 >
-                  {product.stock > 0 ? (
-                    <>
-                      ⚡ Buy Now
-                    </>
-                  ) : (
-                    'Out of Stock'
-                  )}
+                  {product.stock > 0 ? '⚡ Buy Now' : 'Out of Stock'}
                 </button>
               </div>
+
+              {/* Trust Badges */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg mb-1">🔒</span>
+                    <span className="text-xs text-gray-600 font-medium">Secure Payment</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg mb-1">✓</span>
+                    <span className="text-xs text-gray-600 font-medium">Authentic</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg mb-1">📦</span>
+                    <span className="text-xs text-gray-600 font-medium">Safe Delivery</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info Card */}
+            <div className="bg-gradient-to-r from-amber-100 via-orange-100 to-rose-100 rounded-lg p-4 border-2 border-maroon-300">
+              <h3 className="text-sm font-bold text-maroon-900 mb-2">🇵🇰 Why Choose CultureKart?</h3>
+              <ul className="space-y-1.5 text-xs text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Direct support to Pakistani artisans</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>100% authentic handcrafted products</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Secure escrow payment protection</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Preserving cultural heritage</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
 
         {/* Product Details Tabs */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-lg border-2 border-maroon-200 overflow-hidden">
           {/* Tab Navigation */}
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-8 pt-6">
+          <div className="border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
+            <nav className="flex space-x-6 px-6 pt-4">
               {[
                 { id: 'description', label: 'Description', icon: '📋' },
-                { id: 'specifications', label: 'Specifications', icon: '📐' },
+                { id: 'specifications', label: 'Details', icon: '📐' },
+                { id: 'artisan', label: 'Artisan Story', icon: '✨' },
                 { id: 'reviews', label: 'Reviews', icon: '⭐' }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`flex items-center gap-1.5 py-2.5 px-1 border-b-2 font-semibold text-sm transition-colors ${
                     activeTab === tab.id
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-maroon-600 text-maroon-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <span className="text-lg">{tab.icon}</span>
+                  <span className="text-base">{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
@@ -461,23 +482,23 @@ function ProductDetail() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-8">
+          <div className="p-6">
             {activeTab === 'description' && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Product Description</h3>
-                <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg">
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">About This Product</h3>
+                <div className="prose max-w-none">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-line text-sm">
                     {product.description}
                   </p>
                 </div>
                 {product.tags && product.tags.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Tags</h4>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Tags</h4>
                     <div className="flex flex-wrap gap-2">
                       {product.tags.map((tag, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors duration-200"
+                          className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium hover:bg-maroon-100 hover:text-maroon-700 transition-colors"
                         >
                           #{tag}
                         </span>
@@ -489,66 +510,66 @@ function ProductDetail() {
             )}
 
             {activeTab === 'specifications' && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Product Specifications</h3>
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Physical Properties</h4>
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Product Details</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-maroon-800 border-b border-maroon-200 pb-2">Physical Properties</h4>
                     {product.dimensions && product.dimensions.length && product.dimensions.width && product.dimensions.height ? (
-                      <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Dimensions</span>
-                        <span className="font-semibold text-gray-900">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm text-gray-600">Dimensions</span>
+                        <span className="font-semibold text-sm text-gray-900">
                           {product.dimensions.length} × {product.dimensions.width} × {product.dimensions.height} {product.dimensions.unit || 'cm'}
                         </span>
                       </div>
                     ) : (
-                      <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Dimensions</span>
-                        <span className="text-gray-500 italic">Not specified</span>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm text-gray-600">Dimensions</span>
+                        <span className="text-sm text-gray-500 italic">Not specified</span>
                       </div>
                     )}
                     
                     {product.weight && product.weight.value ? (
-                      <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Weight</span>
-                        <span className="font-semibold text-gray-900">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm text-gray-600">Weight</span>
+                        <span className="font-semibold text-sm text-gray-900">
                           {product.weight.value} {product.weight.unit || 'kg'}
                         </span>
                       </div>
                     ) : (
-                      <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Weight</span>
-                        <span className="text-gray-500 italic">Not specified</span>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm text-gray-600">Weight</span>
+                        <span className="text-sm text-gray-500 italic">Not specified</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Category</span>
-                      <span className="font-semibold text-gray-900">{product.category}</span>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600">Category</span>
+                      <span className="font-semibold text-sm text-gray-900">{product.category}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Product Statistics</h4>
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Views</span>
-                      <span className="font-semibold text-gray-900">{product.views || 0}</span>
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-maroon-800 border-b border-maroon-200 pb-2">Statistics</h4>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600">Views</span>
+                      <span className="font-semibold text-sm text-gray-900">{product.views || 0}</span>
                     </div>
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Total Sold</span>
-                      <span className="font-semibold text-gray-900">{product.soldCount || 0}</span>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600">Total Sold</span>
+                      <span className="font-semibold text-sm text-gray-900">{product.soldCount || 0}</span>
                     </div>
-                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Date Listed</span>
-                      <span className="font-semibold text-gray-900">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600">Listed On</span>
+                      <span className="font-semibold text-sm text-gray-900">
                         {new Date(product.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     {product.rating && product.rating.average > 0 && (
-                      <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Rating</span>
-                        <span className="font-semibold text-gray-900 flex items-center gap-1">
-                          ⭐ {product.rating.average.toFixed(1)} ({product.rating.count} reviews)
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm text-gray-600">Rating</span>
+                        <span className="font-semibold text-sm text-gray-900 flex items-center gap-1">
+                          ⭐ {product.rating.average.toFixed(1)} ({product.rating.count})
                         </span>
                       </div>
                     )}
@@ -557,23 +578,82 @@ function ProductDetail() {
               </div>
             )}
 
+            {activeTab === 'artisan' && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Meet the Artisan</h3>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border-2 border-maroon-200">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-maroon-500 to-orange-500 rounded-full flex items-center justify-center text-2xl text-white shadow-lg">
+                      👨‍🎨
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-900">
+                        {product.artisan?.displayName || 'Master Artisan'}
+                      </h4>
+                      {product.artisan?.location && (
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          📍 {product.artisan.location}
+                        </p>
+                      )}
+                      {product.artisan?.verified && (
+                        <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
+                          ✓ Verified Artisan
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-3 text-sm text-gray-700">
+                    <p className="leading-relaxed">
+                      This exquisite piece is handcrafted by skilled Pakistani artisans who have inherited their craft through generations. Each product represents hours of dedicated work, traditional techniques, and a deep connection to cultural heritage.
+                    </p>
+                    <p className="leading-relaxed">
+                      By purchasing this item, you're directly supporting local artisans and helping preserve Pakistan's rich cultural traditions for future generations.
+                    </p>
+                    <div className="bg-white rounded-md p-3 mt-3">
+                      <h5 className="font-semibold text-maroon-800 mb-2 flex items-center gap-2">
+                        🌟 Why Support Artisans?
+                      </h5>
+                      <ul className="space-y-1.5 text-xs">
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600">✓</span>
+                          <span>Fair compensation for skilled craftsmanship</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600">✓</span>
+                          <span>Preservation of traditional art forms</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600">✓</span>
+                          <span>Economic empowerment of local communities</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600">✓</span>
+                          <span>Sustainable and eco-friendly production</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'reviews' && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Customer Reviews</h3>
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Customer Reviews</h3>
                 {product.rating && product.rating.count > 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <span className="text-6xl">⭐</span>
-                    <h4 className="text-xl font-semibold mt-4 mb-2">
+                  <div className="text-center py-10 text-gray-500">
+                    <span className="text-5xl">⭐</span>
+                    <h4 className="text-lg font-semibold mt-3 mb-2">
                       {product.rating.average.toFixed(1)} out of 5 stars
                     </h4>
-                    <p>Based on {product.rating.count} reviews</p>
-                    <p className="text-sm mt-4 text-gray-400">Individual reviews coming soon...</p>
+                    <p className="text-sm">Based on {product.rating.count} reviews</p>
+                    <p className="text-xs mt-3 text-gray-400">Individual reviews coming soon...</p>
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <span className="text-6xl">📝</span>
-                    <h4 className="text-xl font-semibold mt-4 mb-2">No Reviews Yet</h4>
-                    <p>Be the first to review this amazing handcrafted product!</p>
+                  <div className="text-center py-10 text-gray-500">
+                    <span className="text-5xl">📝</span>
+                    <h4 className="text-lg font-semibold mt-3 mb-2">No Reviews Yet</h4>
+                    <p className="text-sm">Be the first to review this handcrafted product!</p>
                   </div>
                 )}
               </div>

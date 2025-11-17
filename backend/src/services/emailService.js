@@ -297,8 +297,44 @@ const generateWelcomeEmailTemplate = (name) => {
   `;
 };
 
+/**
+ * Generic send email function
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.subject - Email subject
+ * @param {string} options.html - HTML content
+ * @param {string} options.text - Plain text content (optional)
+ * @returns {Promise<boolean>} - Success status
+ */
+const sendEmail = async ({ to, subject, html, text }) => {
+  try {
+    if (!transporter) {
+      throw new Error('Email service not configured');
+    }
+
+    const mailOptions = {
+      from: {
+        name: 'CultureKart',
+        address: process.env.EMAIL_USER || 'ccngroupb5@gmail.com',
+      },
+      to,
+      subject,
+      html,
+      text: text || '',
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('📧 Email sent successfully to', to, '- Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send email to', to, ':', error.message);
+    return false;
+  }
+};
+
 module.exports = {
   sendVerificationOTP,
   sendWelcomeEmail,
   testEmailConfig,
+  sendEmail,
 };

@@ -418,10 +418,9 @@ function getTimeAgo(date) {
  * Instance method: Get QR code URL
  */
 productAuthenticationSchema.methods.getQRCodeUrl = function () {
-  // Use network IP so QR codes work on both PC (via network IP) and mobile
-  const networkIp = process.env.NETWORK_IP || '192.168.2.8';
-  const port = process.env.FRONTEND_PORT || '5173';
-  return `http://${networkIp}:${port}/verify/${this.publicVerificationCode}`;
+  // Return URL that points to verification page
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  return `${baseUrl}/verify/${this.publicVerificationCode}`;
 };
 
 /**

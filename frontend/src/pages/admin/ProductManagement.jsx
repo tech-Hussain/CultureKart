@@ -89,8 +89,18 @@ const ProductManagement = () => {
   const getImageUrl = (images) => {
     if (!images || images.length === 0) return 'https://via.placeholder.com/100';
     const img = images[0];
-    if (typeof img === 'string') return img;
-    return img.url || img.path || 'https://via.placeholder.com/100';
+    let url;
+    if (typeof img === 'string') {
+      url = img;
+    } else {
+      url = img.url || img.path || 'https://via.placeholder.com/100';
+    }
+    
+    // Convert IPFS URLs to HTTP gateway URLs
+    if (url.startsWith('ipfs://')) {
+      return url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+    }
+    return url;
   };
 
   return (
