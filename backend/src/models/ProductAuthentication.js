@@ -416,10 +416,23 @@ function getTimeAgo(date) {
 
 /**
  * Instance method: Get QR code URL
+ * Dynamically uses network IP if available
  */
 productAuthenticationSchema.methods.getQRCodeUrl = function () {
-  // Return URL that points to verification page
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const { getNetworkIP } = require('../utils/networkUtils');
+  
+  // In development, use network IP if accessing from network
+  // In production, use the configured frontend URL
+  let baseUrl;
+  
+  if (process.env.NODE_ENV === 'production') {
+    baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  } else {
+    // Development mode: use network IP for better mobile access
+    const networkIP = getNetworkIP();
+    baseUrl = `http://${networkIP}:5173`;
+  }
+  
   return `${baseUrl}/verify/${this.publicVerificationCode}`;
 };
 

@@ -1,0 +1,47 @@
+/* Custom SweetAlert2 button styles */
+.swal2-confirm-custom {
+  background-color: #059669 !important;
+  color: white !important;
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.swal2-confirm-custom:hover {
+  background-color: #047857 !important;
+}
+
+.swal2-cancel-custom {
+  background-color: #6b7280 !important;
+  color: white !important;
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  margin-left: 12px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.swal2-cancel-custom:hover {
+  background-color: #4b5563 !important;
+}
+
+/* For unverify action - red button */
+.swal2-confirm-unverify {
+  background-color: #dc2626 !important;
+  color: white !important;
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.swal2-confirm-unverify:hover {
+  background-color: #b91c1c !important;
+}

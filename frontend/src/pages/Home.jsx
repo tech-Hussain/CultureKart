@@ -295,12 +295,14 @@ function Home() {
                       </div>
 
                       {/* Authenticity badge */}
-                      <div className="absolute top-4 right-4">
-                        <div className="bg-green-500 text-white px-3 py-1 rounded-full shadow-lg flex items-center gap-1 text-xs font-bold">
-                          <span>⛓️</span>
-                          <span>Verified</span>
+                      {product.verified && (
+                        <div className="absolute top-4 right-4">
+                          <div className="bg-green-500 text-white px-3 py-1 rounded-full shadow-lg flex items-center gap-1 text-xs font-bold">
+                            <span>⛓️</span>
+                            <span>Verified</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Product Info */}

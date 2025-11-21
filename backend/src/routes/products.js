@@ -17,6 +17,80 @@ const blockchainService = require('../services/blockchainService');
 
 const router = express.Router();
 
+/**
+ * Admin: Verify/Unverify Product
+ * @route   PATCH /api/v1/products/:id/verify
+ * @access  Private (Admin only)
+ */
+router.patch(
+  '/:id/verify',
+  authenticate,
+  [
+    param('id').isMongoId().withMessage('Invalid product ID'),
+    body('verified').isBoolean().withMessage('Verified must be a boolean'),
+  ],
+  async (req, res) => {
+    try {
+      // Validate request
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      // Check admin role
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Admin only.',
+        });
+      }
+
+      const { id } = req.params;
+      const { verified } = req.body;
+
+      // Find product
+      const product = await Product.findById(id);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found',
+        });
+      }
+
+      // Update verification status
+      product.verified = verified;
+      if (verified) {
+        product.verifiedBy = req.user.userId;
+        product.verifiedAt = new Date();
+      } else {
+        product.verifiedBy = undefined;
+        product.verifiedAt = undefined;
+      }
+
+      await product.save();
+
+      console.log(`✅ Product ${product._id} ${verified ? 'verified' : 'unverified'} by admin ${req.user.email}`);
+
+      res.status(200).json({
+        success: true,
+        message: `Product ${verified ? 'verified' : 'unverified'} successfully`,
+        data: product,
+      });
+    } catch (error) {
+      console.error('❌ Error verifying product:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error while verifying product',
+        error: error.message,
+      });
+    }
+  }
+);
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

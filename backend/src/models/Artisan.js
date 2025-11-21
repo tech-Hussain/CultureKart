@@ -117,6 +117,19 @@ const artisanSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    // Stripe Connect Account ID for payouts
+    stripeAccountId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+
+    // Stripe onboarding complete
+    stripeOnboardingComplete: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt

@@ -4,10 +4,16 @@
  */
 
 import axios from 'axios';
+import { getApiUrl } from '../utils/networkUtils';
+
+// Get the appropriate API URL based on access mode
+const baseURL = getApiUrl();
+
+console.log('🌐 API Base URL:', baseURL);
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

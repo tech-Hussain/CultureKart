@@ -13,7 +13,8 @@ import {
   MapPin, 
   Settings, 
   LogOut,
-  ChevronDown
+  ChevronDown,
+  MessageCircle
 } from 'lucide-react';
 
 const UserAvatar = () => {
@@ -99,6 +100,14 @@ const UserAvatar = () => {
       label: 'My Orders',
       onClick: () => {
         navigate('/orders');
+        setIsDropdownOpen(false);
+      }
+    },
+    {
+      icon: MessageCircle,
+      label: 'Messages',
+      onClick: () => {
+        navigate('/messages');
         setIsDropdownOpen(false);
       }
     },

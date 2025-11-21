@@ -5,10 +5,16 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   EyeIcon,
+  ShieldCheckIcon,
+  ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
-import { getProducts } from '../../services/adminService';
+import { getProducts, verifyProduct } from '../../services/adminService';
+import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
+import './ProductManagement.css';
 
 const ProductManagement = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [products, setProducts] = useState([]);
@@ -41,6 +47,52 @@ const ProductManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyProduct = async (productId, currentStatus) => {
+    const action = currentStatus ? 'unverify' : 'verify';
+    
+    const result = await Swal.fire({
+      title: `${currentStatus ? 'Unverify' : 'Verify'} Product?`,
+      text: `Are you sure you want to ${action} this product?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: `Yes, ${action}!`,
+      cancelButtonText: 'Cancel',
+      customClass: {
+        confirmButton: currentStatus ? 'swal2-confirm-unverify' : 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom',
+      },
+      buttonsStyling: false,
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await verifyProduct(productId, !currentStatus);
+        
+        Swal.fire({
+          icon: 'success',
+          title: `Product ${currentStatus ? 'Unverified' : 'Verified'}!`,
+          text: `The product has been ${action}ed successfully.`,
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
+        // Refresh products list
+        fetchProducts();
+      } catch (error) {
+        console.error(`Failed to ${action} product:`, error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: `Failed to ${action} product. Please try again.`,
+        });
+      }
+    }
+  };
+
+  const handleViewProduct = (productId) => {
+    navigate(`/product/${productId}`);
   };
 
   const handleSearch = async () => {
@@ -189,6 +241,7 @@ const ProductManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Stock</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Verified</th>
                     <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Actions</th>
                   </tr>
                 </thead>
@@ -225,9 +278,41 @@ const ProductManagement = () => {
                       </td>
                       <td className="px-6 py-4">{getStatusBadge(product.status)}</td>
                       <td className="px-6 py-4">
+                        {product.verified ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            <ShieldCheckIcon className="w-4 h-4 mr-1" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                            <ShieldExclamationIcon className="w-4 h-4 mr-1" />
+                            Not Verified
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex items-center justify-end space-x-2">
-                          <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="View">
+                          <button 
+                            onClick={() => handleViewProduct(product._id)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" 
+                            title="View"
+                          >
                             <EyeIcon className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleVerifyProduct(product._id, product.verified)}
+                            className={`p-2 rounded-lg ${
+                              product.verified 
+                                ? 'text-orange-600 hover:bg-orange-50' 
+                                : 'text-green-600 hover:bg-green-50'
+                            }`}
+                            title={product.verified ? 'Unverify Product' : 'Verify Product'}
+                          >
+                            {product.verified ? (
+                              <ShieldExclamationIcon className="w-5 h-5" />
+                            ) : (
+                              <ShieldCheckIcon className="w-5 h-5" />
+                            )}
                           </button>
                           {product.status === 'pending' && (
                             <>

@@ -147,7 +147,17 @@ exports.generateOrderAuthenticationCodes = async (orderOrId) => {
  */
 exports.generateQRCodeImage = async (verificationCode) => {
   try {
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const { getNetworkIP } = require('../utils/networkUtils');
+    
+    // Use network IP in development for better mobile access
+    let baseUrl;
+    if (process.env.NODE_ENV === 'production') {
+      baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    } else {
+      const networkIP = getNetworkIP();
+      baseUrl = `http://${networkIP}:5173`;
+    }
+    
     const verificationUrl = `${baseUrl}/verify/${verificationCode}`;
 
     const qrCodeDataURL = await QRCode.toDataURL(verificationUrl, {

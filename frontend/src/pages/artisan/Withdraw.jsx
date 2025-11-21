@@ -1,16 +1,18 @@
 /**
  * Withdraw Earnings Page
- * Request withdrawal of earnings with real data
+ * Request withdrawal of earnings with real Stripe Connect integration
  */
 import { useState, useEffect } from 'react';
-import { BanknotesIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { getDashboardStats } from '../../services/artisanService';
+import { BanknotesIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { getAvailableBalance, createWithdrawal } from '../../services/withdrawalService';
 import Swal from 'sweetalert2';
 
 function Withdraw() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [transactionId, setTransactionId] = useState('');
+  const [estimatedArrival, setEstimatedArrival] = useState(null);
   const [amount, setAmount] = useState('');
   const [accountDetails, setAccountDetails] = useState({
     bankName: '',
@@ -18,13 +20,18 @@ function Withdraw() {
     accountTitle: '',
   });
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [balanceDetails, setBalanceDetails] = useState(null);
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
         setLoading(true);
-        const response = await getDashboardStats();
-        setAvailableBalance(response.data?.totalRevenue || 0);
+        const response = await getAvailableBalance();
+        const data = response.data?.data || response.data;
+        
+        console.log('💰 Available balance:', data);
+        setAvailableBalance(data.availableBalance || 0);
+        setBalanceDetails(data);
       } catch (error) {
         console.error('Failed to fetch balance:', error);
         Swal.fire({
@@ -43,16 +50,19 @@ function Withdraw() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (parseFloat(amount) > availableBalance) {
+    const withdrawalAmount = parseFloat(amount);
+    
+    if (withdrawalAmount > availableBalance) {
       Swal.fire({
         icon: 'error',
         title: 'Insufficient Balance',
-        text: 'You do not have enough balance for this withdrawal'
+        text: `You only have Rs ${availableBalance.toLocaleString()} available`,
+        footer: balanceDetails ? `Pending withdrawals: Rs ${balanceDetails.pendingWithdrawals.toLocaleString()}` : ''
       });
       return;
     }
 
-    if (parseFloat(amount) < 1000) {
+    if (withdrawalAmount < 1000) {
       Swal.fire({
         icon: 'warning',
         title: 'Invalid Amount',
@@ -63,33 +73,49 @@ function Withdraw() {
 
     try {
       setSubmitting(true);
-      // TODO: Implement actual withdrawal API call
-      // await createWithdrawalRequest({ amount, ...accountDetails });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const withdrawalData = {
+        amount: withdrawalAmount,
+        bankDetails: {
+          bankName: accountDetails.bankName,
+          accountNumber: accountDetails.accountNumber,
+          accountTitle: accountDetails.accountTitle,
+        },
+      };
+
+      console.log('📤 Submitting withdrawal:', withdrawalData);
+      const response = await createWithdrawal(withdrawalData);
+      const data = response.data?.data || response.data;
       
+      console.log('✅ Withdrawal response:', data);
+      
+      setTransactionId(data.withdrawal.id);
+      setEstimatedArrival(data.withdrawal.estimatedArrival);
       setSuccess(true);
+      
       Swal.fire({
         icon: 'success',
         title: 'Request Submitted!',
-        text: 'Your withdrawal request has been submitted successfully',
-        timer: 2000,
+        html: `
+          <p>Your withdrawal request has been submitted successfully</p>
+          <p class="text-sm text-gray-600 mt-2">Transaction ID: ${data.withdrawal.id.slice(-8)}</p>
+          <p class="text-sm text-gray-600">Processing fee: Rs ${data.withdrawal.processingFee.toLocaleString()}</p>
+          <p class="text-sm font-semibold text-green-600 mt-2">Net amount: Rs ${data.withdrawal.netAmount.toLocaleString()}</p>
+        `,
+        timer: 3000,
         showConfirmButton: false
       });
       
-      // Reset form after 3 seconds
-      setTimeout(() => {
-        setSuccess(false);
-        setAmount('');
-        setAccountDetails({ bankName: '', accountNumber: '', accountTitle: '' });
-      }, 3000);
     } catch (error) {
       console.error('Withdrawal error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to submit withdrawal request';
+      const errorDetails = error.response?.data?.details;
+      
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Failed to submit withdrawal request'
+        text: errorMessage,
+        footer: errorDetails ? `Available: Rs ${errorDetails.available.toLocaleString()}` : ''
       });
     } finally {
       setSubmitting(false);
@@ -110,16 +136,39 @@ function Withdraw() {
         <div className="bg-white rounded-xl shadow-lg p-12 text-center">
           <CheckCircleIcon className="w-20 h-20 text-emerald-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-2">
             Your withdrawal request has been submitted successfully.
-            <br />We'll process it within 2-3 business days.
           </p>
-          <button
-            onClick={() => setSuccess(false)}
-            className="px-6 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700"
-          >
-            Make Another Request
-          </button>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 my-4">
+            <p className="text-sm font-mono text-blue-800">Transaction ID: #{transactionId.slice(-8).toUpperCase()}</p>
+            {estimatedArrival && (
+              <p className="text-sm text-blue-700 mt-2">
+                <ClockIcon className="w-4 h-4 inline mr-1" />
+                Estimated arrival: {new Date(estimatedArrival).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-6">
+            We'll process it within 2-3 business days. You can track the status on your Wallet page.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setAmount('');
+                setAccountDetails({ bankName: '', accountNumber: '', accountTitle: '' });
+              }}
+              className="px-6 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700"
+            >
+              Make Another Request
+            </button>
+            <a
+              href="/artisan/wallet"
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              View Wallet
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -137,11 +186,23 @@ function Withdraw() {
       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-xl p-8 text-white">
         <div className="flex items-center gap-3 mb-4">
           <BanknotesIcon className="w-10 h-10" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm opacity-90">Available for Withdrawal</p>
             <p className="text-4xl font-bold">Rs {availableBalance.toLocaleString()}</p>
           </div>
         </div>
+        {balanceDetails && (
+          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/20">
+            <div>
+              <p className="text-xs opacity-75">Total Earnings</p>
+              <p className="text-lg font-semibold">Rs {balanceDetails.totalEarnings?.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs opacity-75">Pending Withdrawals</p>
+              <p className="text-lg font-semibold">Rs {balanceDetails.pendingWithdrawals?.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Withdrawal Form */}
@@ -217,6 +278,12 @@ function Withdraw() {
             <strong>Note:</strong> Withdrawal requests are processed within 2-3 business
             days. A processing fee of 2% will be deducted from the withdrawal amount.
             <br />Minimum withdrawal: Rs 1,000
+            <br />
+            <br />
+            <strong>Test Account Numbers (Sandbox Mode):</strong>
+            <br />• <code>1234567890</code> - Always succeeds (instant)
+            <br />• <code>9999999999</code> - Delayed processing (5 seconds)
+            <br />• <code>0000000000</code> - Always fails (test error handling)
           </p>
         </div>
 

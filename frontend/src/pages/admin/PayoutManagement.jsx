@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
@@ -6,6 +6,13 @@ import {
   ClockIcon,
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
+import {
+  getWithdrawals,
+  getWithdrawalSummary,
+  approveWithdrawal,
+  rejectWithdrawal,
+} from '../../services/adminService';
+import Swal from 'sweetalert2';
 
 /**
  * Payout Management Page
@@ -14,69 +21,142 @@ import {
 const PayoutManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-
-  const withdrawalRequests = [
-    {
-      id: 1,
-      artisanName: 'Ahmed Khan',
-      artisanId: 101,
-      amount: 12500,
-      commission: 1250,
-      netAmount: 11250,
-      requestDate: '2024-06-26',
-      status: 'pending',
-      bankDetails: 'Bank: HBL - Account: 1234567890',
-    },
-    {
-      id: 2,
-      artisanName: 'Ali Hassan',
-      artisanId: 102,
-      amount: 18900,
-      commission: 1890,
-      netAmount: 17010,
-      requestDate: '2024-06-25',
-      status: 'approved',
-      approvedDate: '2024-06-26',
-      bankDetails: 'Bank: UBL - Account: 0987654321',
-    },
-    {
-      id: 3,
-      artisanName: 'Fatima Bibi',
-      artisanId: 103,
-      amount: 8900,
-      commission: 890,
-      netAmount: 8010,
-      requestDate: '2024-06-24',
-      status: 'completed',
-      approvedDate: '2024-06-25',
-      completedDate: '2024-06-26',
-      bankDetails: 'Bank: MCB - Account: 5555666677',
-    },
-  ];
-
-  const filteredRequests = withdrawalRequests.filter((req) => {
-    const matchesSearch =
-      req.artisanName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.artisanId.toString().includes(searchTerm);
-
-    const matchesStatus = filterStatus === 'all' || req.status === filterStatus;
-
-    return matchesSearch && matchesStatus;
+  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({
+    pending: 0,
+    totalCommission: 0,
+    approvedToday: 0,
+    completed: 0,
   });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
-  const totalPending = withdrawalRequests.filter((r) => r.status === 'pending').length;
-  const totalCommission = withdrawalRequests.reduce((sum, req) => sum + req.commission, 0);
+  useEffect(() => {
+    fetchWithdrawals();
+    fetchSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, pagination.page]);
 
-  const handleApprove = (id) => {
-    console.log('Approve withdrawal:', id);
+  const fetchWithdrawals = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        search: searchTerm || undefined,
+      };
+
+      const response = await getWithdrawals(params);
+      const data = response.data;
+
+      setWithdrawalRequests(data.data?.withdrawals || []);
+      if (data.pagination) {
+        setPagination(data.pagination);
+      }
+    } catch (error) {
+      console.error('Failed to fetch withdrawals:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to fetch withdrawal requests',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id) => {
-    console.log('Reject withdrawal:', id);
+  const fetchSummary = async () => {
+    try {
+      const response = await getWithdrawalSummary();
+      setSummary(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch summary:', error);
+    }
   };
 
-  const handleHold = (id) => {
-    console.log('Hold withdrawal:', id);
+  const handleSearch = () => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchWithdrawals();
+  };
+
+  const handleApprove = async (id) => {
+    const result = await Swal.fire({
+      title: 'Approve Withdrawal?',
+      text: 'This will process the payout to the artisan.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '<span style="color: white;">Yes, approve!</span>',
+      cancelButtonText: '<span style="color: white;">Cancel</span>',
+      confirmButtonColor: '#059669',
+      cancelButtonColor: '#6b7280',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await approveWithdrawal(id);
+        Swal.fire({
+          icon: 'success',
+          title: 'Approved!',
+          text: 'Withdrawal has been approved and is being processed.',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        fetchWithdrawals();
+        fetchSummary();
+      } catch (error) {
+        console.error('Failed to approve withdrawal:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to approve withdrawal. Please try again.',
+        });
+      }
+    }
+  };
+
+  const handleReject = async (id) => {
+    const result = await Swal.fire({
+      title: 'Reject Withdrawal?',
+      input: 'textarea',
+      inputLabel: 'Rejection Reason',
+      inputPlaceholder: 'Enter the reason for rejection...',
+      inputAttributes: {
+        'aria-label': 'Enter rejection reason',
+      },
+      showCancelButton: true,
+      confirmButtonText: '<span style="color: white;">Reject</span>',
+      cancelButtonText: '<span style="color: white;">Cancel</span>',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Please provide a reason for rejection';
+        }
+      },
+    });
+
+    if (result.isConfirmed && result.value) {
+      try {
+        await rejectWithdrawal(id, result.value);
+        Swal.fire({
+          icon: 'success',
+          title: 'Rejected!',
+          text: 'Withdrawal has been rejected.',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        fetchWithdrawals();
+        fetchSummary();
+      } catch (error) {
+        console.error('Failed to reject withdrawal:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to reject withdrawal. Please try again.',
+        });
+      }
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -106,23 +186,19 @@ const PayoutManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <p className="text-sm font-medium text-gray-600">Pending Requests</p>
-          <p className="text-3xl font-bold text-yellow-600 mt-2">{totalPending}</p>
+          <p className="text-3xl font-bold text-yellow-600 mt-2">{summary.pending}</p>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <p className="text-sm font-medium text-gray-600">Total Commission</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">Rs. {totalCommission}</p>
+          <p className="text-3xl font-bold text-green-600 mt-2">Rs. {summary.totalCommission?.toFixed(0)}</p>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <p className="text-sm font-medium text-gray-600">Approved Today</p>
-          <p className="text-3xl font-bold text-blue-600 mt-2">
-            {withdrawalRequests.filter((r) => r.status === 'approved').length}
-          </p>
+          <p className="text-3xl font-bold text-blue-600 mt-2">{summary.approvedToday}</p>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <p className="text-sm font-medium text-gray-600">Completed</p>
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {withdrawalRequests.filter((r) => r.status === 'completed').length}
-          </p>
+          <p className="text-3xl font-bold text-gray-800 mt-2">{summary.completed}</p>
         </div>
       </div>
 
@@ -136,13 +212,17 @@ const PayoutManagement = () => {
               placeholder="Search by artisan name or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Status</option>
@@ -156,8 +236,17 @@ const PayoutManagement = () => {
 
       {/* Withdrawal Requests Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading withdrawals...</p>
+          </div>
+        ) : withdrawalRequests.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No withdrawal requests found</div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Artisan</th>
@@ -170,28 +259,36 @@ const PayoutManagement = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredRequests.map((request) => (
-                <tr key={request.id} className="hover:bg-gray-50">
+              {withdrawalRequests.map((request) => (
+                <tr key={request._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-800">{request.artisanName}</p>
-                      <p className="text-xs text-gray-600">ID: {request.artisanId}</p>
-                      <p className="text-xs text-gray-500 mt-1">{request.bankDetails}</p>
+                      <p className="text-sm font-medium text-gray-800">
+                        {request.artisan?.displayName || 'Unknown Artisan'}
+                      </p>
+                      <p className="text-xs text-gray-600">ID: {request.artisan?._id?.toString().slice(-6)}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {request.bankDetails?.bankName} - {request.bankDetails?.accountNumber}
+                      </p>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-semibold text-gray-800">Rs. {request.amount}</p>
+                    <p className="text-sm font-semibold text-gray-800">Rs. {request.amount?.toFixed(0)}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-semibold text-red-600">Rs. {request.commission}</p>
+                    <p className="text-sm font-semibold text-red-600">Rs. {request.processingFee?.toFixed(0)}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-green-600">Rs. {request.netAmount}</p>
+                    <p className="text-sm font-bold text-green-600">Rs. {request.netAmount?.toFixed(0)}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm text-gray-800">{request.requestDate}</p>
-                    {request.approvedDate && (
-                      <p className="text-xs text-gray-600">Approved: {request.approvedDate}</p>
+                    <p className="text-sm text-gray-800">
+                      {new Date(request.requestedAt || request.createdAt).toLocaleDateString()}
+                    </p>
+                    {request.completedAt && (
+                      <p className="text-xs text-gray-600">
+                        Completed: {new Date(request.completedAt).toLocaleDateString()}
+                      </p>
                     )}
                   </td>
                   <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
@@ -199,26 +296,24 @@ const PayoutManagement = () => {
                     {request.status === 'pending' && (
                       <div className="flex items-center justify-end space-x-2">
                         <button
-                          onClick={() => handleApprove(request.id)}
+                          onClick={() => handleApprove(request._id)}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Approve"
                         >
                           <CheckCircleIcon className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleHold(request.id)}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                          title="Hold"
-                        >
-                          <ClockIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleReject(request.id)}
+                          onClick={() => handleReject(request._id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Reject"
                         >
                           <XCircleIcon className="w-5 h-5" />
                         </button>
+                      </div>
+                    )}
+                    {request.status === 'processing' && (
+                      <div className="flex items-center justify-end">
+                        <ClockIcon className="w-5 h-5 text-blue-600 animate-pulse" title="Processing" />
                       </div>
                     )}
                   </td>
@@ -227,6 +322,33 @@ const PayoutManagement = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Page {pagination.page} of {pagination.pages} ({pagination.total} total requests)
+            </p>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page === 1}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page === pagination.pages}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+          </>
+        )}
       </div>
 
       {/* Commission Breakdown */}
@@ -238,17 +360,17 @@ const PayoutManagement = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm text-green-700">Total Earned</p>
-            <p className="text-2xl font-bold text-green-700 mt-1">Rs. {totalCommission}</p>
+            <p className="text-2xl font-bold text-green-700 mt-1">Rs. {summary.totalCommission?.toFixed(0) || 0}</p>
           </div>
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm text-blue-700">Pending Commission</p>
             <p className="text-2xl font-bold text-blue-700 mt-1">
-              Rs. {withdrawalRequests.filter((r) => r.status === 'pending').reduce((sum, r) => sum + r.commission, 0)}
+              Rs. {(summary.stats?.pending?.commission || 0).toFixed(0)}
             </p>
           </div>
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-700">Commission Rate</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">10%</p>
+            <p className="text-2xl font-bold text-gray-800 mt-1">2%</p>
           </div>
         </div>
       </div>

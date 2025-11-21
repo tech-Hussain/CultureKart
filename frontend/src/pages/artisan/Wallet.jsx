@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 import { BanknotesIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
-import { getDashboardStats, getArtisanOrders } from '../../services/artisanService';
+import { getArtisanOrders } from '../../services/artisanService';
+import { getAvailableBalance, getWithdrawals } from '../../services/withdrawalService';
 
 function Wallet() {
   const [loading, setLoading] = useState(true);
@@ -17,32 +18,43 @@ function Wallet() {
     const fetchWalletData = async () => {
       try {
         setLoading(true);
-        const [statsResponse, ordersResponse] = await Promise.all([
-          getDashboardStats(),
-          getArtisanOrders({ limit: 20, status: 'delivered' })
-        ]);
-
-        // Calculate available balance from delivered orders
-        const stats = statsResponse.data?.data || statsResponse.data;
-        console.log('📊 Wallet stats:', stats);
-        setBalance(stats.totalRevenue || 0);
         
-        // Calculate pending from processing/shipped orders
-        const pendingOrders = await getArtisanOrders({ limit: 50, status: 'processing,shipped' });
-        const pending = pendingOrders.data?.data?.orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
-        setPendingAmount(pending);
+        // Fetch available balance
+        const balanceResponse = await getAvailableBalance();
+        const balanceData = balanceResponse.data?.data || balanceResponse.data;
+        
+        console.log('💰 Balance data:', balanceData);
+        setBalance(balanceData.availableBalance || 0);
+        setPendingAmount(balanceData.pendingWithdrawals || 0);
 
-        // Transform orders into transactions
+        // Fetch order transactions
+        const ordersResponse = await getArtisanOrders({ limit: 10, status: 'delivered' });
         const orderTransactions = ordersResponse.data?.data?.orders?.map(order => ({
           id: order._id,
           orderId: order.orderNumber || order._id.slice(-8),
           amount: order.total || 0,
           date: order.createdAt,
-          status: order.status === 'delivered' ? 'completed' : 'pending',
+          status: 'completed',
           type: 'sale'
         })) || [];
+
+        // Fetch withdrawal transactions
+        const withdrawalsResponse = await getWithdrawals({ limit: 10 });
+        const withdrawalTransactions = withdrawalsResponse.data?.data?.withdrawals?.map(w => ({
+          id: w._id,
+          orderId: w._id.slice(-8),
+          amount: -w.amount, // Negative for withdrawals
+          date: w.createdAt,
+          status: w.status,
+          type: 'withdrawal'
+        })) || [];
+
+        // Combine and sort by date
+        const allTransactions = [...orderTransactions, ...withdrawalTransactions]
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 10);
         
-        setTransactions(orderTransactions.slice(0, 10));
+        setTransactions(allTransactions);
       } catch (error) {
         console.error('Failed to fetch wallet data:', error);
       } finally {

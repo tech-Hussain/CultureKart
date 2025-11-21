@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/api';
 import { getImageDisplayUrl, convertIpfsToHttp } from '../utils/ipfs';
+import { startConversation } from '../services/messageService';
 import Swal from 'sweetalert2';
 
 function ProductDetail() {
@@ -25,6 +26,7 @@ function ProductDetail() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
+  const [startingConversation, setStartingConversation] = useState(false);
   
   // Check if product is in cart
   const inCart = product ? isInCart(product._id) : false;
@@ -88,6 +90,76 @@ function ProductDetail() {
 
     // Navigate to cart/checkout
     navigate('/cart');
+  };
+
+  // Handle Contact Seller
+  const handleContactSeller = async () => {
+    if (!user) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Login Required',
+        text: 'Please login to contact the seller',
+        showCancelButton: true,
+        confirmButtonText: 'Login',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#8B4513'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/login');
+        }
+      });
+      return;
+    }
+
+    if (!product.artisan?._id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Unable to contact seller for this product',
+      });
+      return;
+    }
+
+    try {
+      setStartingConversation(true);
+      console.log('🔄 Starting conversation with:', product.artisan._id, product._id);
+      const response = await startConversation(product.artisan._id, product._id);
+      
+      console.log('✅ Conversation response:', response);
+      console.log('✅ Response data:', response.data);
+      console.log('✅ Response data status:', response.data?.status);
+      
+      if (response.data?.success === true) {
+        console.log('🚀 Navigating to /messages');
+        
+        // Navigate immediately without SweetAlert delay
+        navigate('/messages');
+        
+        // Show success toast after navigation
+        setTimeout(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: 'Conversation started successfully!',
+            timer: 2000,
+            showConfirmButton: false,
+            position: 'top-end',
+            toast: true
+          });
+        }, 100);
+      } else {
+        throw new Error('Invalid response format: ' + JSON.stringify(response.data));
+      }
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to start conversation. Please try again.',
+      });
+    } finally {
+      setStartingConversation(false);
+    }
   };
 
 
@@ -370,6 +442,23 @@ function ProductDetail() {
 
               {/* Action Buttons */}
               <div className="space-y-2.5">
+                <button
+                  onClick={handleContactSeller}
+                  disabled={startingConversation}
+                  className="w-full text-sm py-2.5 px-4 rounded-md font-semibold transition-all border-2 flex items-center justify-center gap-2 bg-white border-blue-600 text-blue-700 hover:bg-blue-50"
+                >
+                  {startingConversation ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      💬 Contact Seller
+                    </>
+                  )}
+                </button>
+
                 <button
                   onClick={handleAddToCart}
                   disabled={product.stock === 0 || addingToCart}

@@ -5,6 +5,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const { getNetworkIP } = require('./src/utils/networkUtils');
 
 // Initialize Express app
 const app = express();
@@ -13,17 +14,35 @@ const app = express();
  * Middleware Configuration
  */
 
-// Enable CORS
+// Get network IP for dynamic CORS
+const networkIP = getNetworkIP();
+const port5173 = 5173;
+const port5174 = 5174;
+
+// Enable CORS with dynamic network IP support
 const corsOptions = {
   origin: [
-    process.env.CLIENT_URL || 'http://localhost:5174',
+    // Localhost URLs
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
-  ],
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
+    // Network IP URLs
+    `http://${networkIP}:${port5173}`,
+    `http://${networkIP}:${port5174}`,
+    `http://${networkIP}:5175`,
+    // Environment variable fallback
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+  ].filter(Boolean), // Remove undefined values
   credentials: true,
   optionsSuccessStatus: 200,
 };
+
+console.log('🔒 CORS enabled for origins:', corsOptions.origin);
+
 app.use(cors(corsOptions));
 
 // Stripe webhook needs raw body - must come before JSON parsing
@@ -36,7 +55,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`🌐 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    // Skip logging for common bot/scanner paths to reduce noise
+    const ignorePaths = ['/loginMsg.js', '/cgi/', '.php', '.asp', '.env', 'wp-admin', 'wp-login'];
+    const shouldIgnore = ignorePaths.some(path => req.path.includes(path));
+    
+    if (!shouldIgnore) {
+      console.log(`🌐 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    }
+    
     if (req.method === 'PATCH' && req.path.includes('/auth/profile')) {
       console.log('📋 Headers:', req.headers);
       console.log('📦 Body:', req.body);
@@ -48,6 +74,28 @@ if (process.env.NODE_ENV === 'development') {
 /**
  * API Routes - All routes under /api/v1
  */
+
+// Root route - Welcome message
+app.get('/', (req, res) => {
+  const port = process.env.PORT || 5000;
+  const networkIP = getNetworkIP();
+  
+  res.status(200).json({
+    name: 'CultureKart API',
+    version: '1.0.0',
+    status: 'running',
+    message: 'Welcome to CultureKart API. All endpoints are under /api/v1',
+    endpoints: {
+      health: `/api/v1/health`,
+      networkConfig: `/api/v1/network-config`,
+    },
+    access: {
+      local: `http://localhost:${port}/api/v1`,
+      network: `http://${networkIP}:${port}/api/v1`,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Stripe webhook - MUST be before express.json() middleware
 app.use('/api/v1/stripe/webhook', require('./src/routes/stripe'));
@@ -62,16 +110,38 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
+// Network configuration endpoint
+app.get('/api/v1/network-config', (req, res) => {
+  const port = process.env.PORT || 5000;
+  const networkIP = getNetworkIP();
+  
+  res.status(200).json({
+    status: 'ok',
+    config: {
+      apiUrl: {
+        local: `http://localhost:${port}/api/v1`,
+        network: `http://${networkIP}:${port}/api/v1`,
+      },
+      networkIP: networkIP,
+      port: port,
+    },
+  });
+});
+
 // Mount API routes
 app.use('/api/v1/auth', require('./src/routes/auth'));
 app.use('/api/v1/products', require('./src/routes/products'));
 app.use('/api/v1/payments', require('./src/routes/payments'));
 app.use('/api/v1/admin', require('./src/routes/admin'));
 app.use('/api/v1/admin', require('./src/routes/adminCommission'));
+app.use('/api/v1/admin/withdrawals', require('./src/routes/adminWithdrawal'));
 app.use('/api/v1/orders', require('./src/routes/orders'));
 app.use('/api/v1/cart', require('./src/routes/cart'));
 app.use('/api/v1/stripe', require('./src/routes/stripe'));
 app.use('/api/v1/artisan', require('./src/routes/artisan'));
+app.use('/api/v1/artisan/withdrawals', require('./src/routes/withdrawal'));
+app.use('/api/v1/seller', require('./src/routes/sellerDashboard'));
+app.use('/api/v1/messages', require('./src/routes/messages'));
 app.use('/api/v1/home', require('./src/routes/home'));
 app.use('/api/v1/verification', require('./src/routes/verification'));
 app.use('/api/v1/delivery', require('./src/routes/delivery'));
@@ -83,6 +153,14 @@ app.use('/api/v1/delivery', require('./src/routes/delivery'));
  * 404 Handler - Route not found
  */
 app.use((req, res, next) => {
+  // Don't log common bot/scanner requests
+  const ignorePaths = ['/loginMsg.js', '/cgi/', '.php', '.asp', '.env', 'wp-admin', 'wp-login'];
+  const shouldIgnore = ignorePaths.some(path => req.originalUrl.includes(path));
+  
+  if (!shouldIgnore && process.env.NODE_ENV === 'development') {
+    console.log(`⚠️  404 Not Found: ${req.method} ${req.originalUrl}`);
+  }
+  
   const error = new Error(`Route not found - ${req.originalUrl}`);
   error.statusCode = 404;
   next(error);
@@ -99,7 +177,13 @@ app.use((err, req, res, next) => {
 
   // Log error in development
   if (process.env.NODE_ENV === 'development') {
-    console.error('❌ Error:', err);
+    // Don't log errors for bot/scanner requests
+    const ignorePaths = ['/loginMsg.js', '/cgi/', '.php', '.asp', '.env', 'wp-admin', 'wp-login'];
+    const shouldIgnore = ignorePaths.some(path => req.originalUrl?.includes(path));
+    
+    if (!shouldIgnore) {
+      console.error('❌ Error:', err);
+    }
   }
 
   // Mongoose validation error

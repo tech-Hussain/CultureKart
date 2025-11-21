@@ -297,8 +297,8 @@ function ProductList() {
                             </div>
                           )}
                           
-                          {/* Blockchain Badge */}
-                          {product.blockchainTxn && (
+                          {/* Verified Badge */}
+                          {product.verified && (
                             <div className="absolute top-2 right-2 bg-teal-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
                               ⛓️ Verified
                             </div>

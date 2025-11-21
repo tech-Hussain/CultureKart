@@ -189,6 +189,23 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Admin verification status
+    verified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    // Verification details
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+
+    verifiedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt

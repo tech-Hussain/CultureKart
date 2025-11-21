@@ -100,6 +100,60 @@ export const getOrders = async (params = {}) => {
 };
 
 /**
+ * Verify or unverify a product
+ */
+export const verifyProduct = async (productId, verified) => {
+  console.log(`${verified ? '\u2705' : '\u274c'} ${verified ? 'Verifying' : 'Unverifying'} product ${productId}...`);
+  const response = await apiRequest(`/products/${productId}/verify`, 'PATCH', { verified });
+  console.log('\u2705 Product verification response:', response.data);
+  return response;
+};
+
+/**
+ * Get all withdrawal requests
+ */
+export const getWithdrawals = async (params = {}) => {
+  console.log('\ud83d\udcb0 Fetching withdrawals with params:', params);
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
+  const response = await apiRequest(`/admin/withdrawals${queryString ? `?${queryString}` : ''}`, 'GET');
+  console.log('\u2705 Withdrawals response:', response.data);
+  return response;
+};
+
+/**
+ * Get withdrawal summary statistics
+ */
+export const getWithdrawalSummary = async () => {
+  console.log('\ud83d\udcca Fetching withdrawal summary...');
+  const response = await apiRequest('/admin/withdrawals/summary', 'GET');
+  console.log('\u2705 Withdrawal summary response:', response.data);
+  return response;
+};
+
+/**
+ * Approve a withdrawal request
+ */
+export const approveWithdrawal = async (withdrawalId) => {
+  console.log('\u2705 Approving withdrawal:', withdrawalId);
+  const response = await apiRequest(`/admin/withdrawals/${withdrawalId}/approve`, 'PATCH');
+  console.log('\u2705 Approval response:', response.data);
+  return response;
+};
+
+/**
+ * Reject a withdrawal request
+ */
+export const rejectWithdrawal = async (withdrawalId, reason) => {
+  console.log('\u274c Rejecting withdrawal:', withdrawalId);
+  const response = await apiRequest(`/admin/withdrawals/${withdrawalId}/reject`, 'PATCH', { reason });
+  console.log('\u2705 Rejection response:', response.data);
+  return response;
+};
+
+/**
  * Format currency
  */
 export const formatCurrency = (amount, currency = 'PKR') => {
