@@ -266,8 +266,13 @@ async function handleCheckoutSessionCompleted(session) {
       return;
     }
 
-    // Mark order as paid
-    order.paymentInfo.status = 'paid';
+    // Calculate commission split (90% artisan, 10% platform)
+    const platformCommission = Math.round(order.total * 0.10);
+    const artisanShare = order.total - platformCommission;
+
+    // Mark order as paid and set payment distribution
+    order.paymentInfo.status = 'completed';
+    order.paymentInfo.paidAt = new Date();
     order.paymentInfo.transactionId = session.payment_intent || session.id;
     order.paymentInfo.gatewayResponse = {
       sessionId: session.id,
@@ -276,6 +281,22 @@ async function handleCheckoutSessionCompleted(session) {
       currency: session.currency
     };
     order.status = 'confirmed';
+    
+    // Set payment distribution for escrow tracking
+    order.paymentDistribution = {
+      escrowAmount: order.total,
+      escrowReleased: false,
+      artisanPayout: {
+        amount: artisanShare,
+        paid: false,
+      },
+      platformCommission: {
+        amount: platformCommission,
+        collected: true,
+        collectedAt: new Date(),
+      },
+    };
+    
     await order.save();
 
     // Populate order details for email

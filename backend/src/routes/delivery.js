@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
-const { distributePaymentOnDelivery } = require('../services/paymentEscrowService');
+const { distributePaymentOnDelivery, sendDeliveryConfirmationEmail } = require('../services/paymentEscrowService');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
@@ -72,22 +72,35 @@ router.post('/confirm/:orderId', authenticate, async (req, res) => {
 
     console.log(`✅ Delivery confirmed for order ${orderId}`);
 
-    // Distribute payment (90% artisan, 10% platform)
-    const paymentResult = await distributePaymentOnDelivery(orderId, userId);
+    // Populate order details for email
+    await order.populate('buyer', 'name email');
+    await order.populate('items.product', 'title');
+
+    // Send delivery confirmation email to buyer
+    try {
+      await sendDeliveryConfirmationEmail(order);
+      console.log('✅ Delivery confirmation email sent to buyer');
+    } catch (emailError) {
+      console.error('❌ Delivery confirmation email failed (non-critical):', emailError.message);
+      // Continue - delivery is confirmed even if email fails
+    }
+
+    // NOTE: Payment escrow is NOT released automatically
+    // Admin must manually release escrow via /api/v1/admin/escrow/:orderId/release
 
     res.status(200).json({
       success: true,
-      message: 'Delivery confirmed successfully. Payment has been distributed.',
+      message: 'Delivery confirmed successfully. Escrow funds await admin release.',
       order: {
         id: order._id,
         status: order.status,
         deliveredAt: order.shippingDetails.deliveredAt,
         buyerNotified: order.shippingDetails.buyerNotifiedOfDelivery,
       },
-      payment: {
-        artisanPayout: paymentResult.artisanPayout,
-        platformCommission: paymentResult.platformCommission,
-        distributed: true,
+      escrow: {
+        amount: order.paymentDistribution?.artisanPayout?.amount || 0,
+        released: order.paymentDistribution?.escrowReleased || false,
+        requiresAdminApproval: true,
       },
     });
 

@@ -14,9 +14,12 @@ import {
   Truck,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Star
 } from 'lucide-react';
 import api from '../api/api';
+import ReviewForm from '../components/ReviewForm';
+import { checkCanReview } from '../services/reviewService';
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -24,10 +27,18 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reviewStatus, setReviewStatus] = useState(null);
+  const [showReviewForm, setShowReviewForm] = useState(null); // productId to show form for
 
   useEffect(() => {
     loadOrderDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (order && order.status === 'delivered') {
+      loadReviewStatus();
+    }
+  }, [order]);
 
   const loadOrderDetails = async () => {
     try {
@@ -46,6 +57,24 @@ const OrderDetailPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadReviewStatus = async () => {
+    try {
+      const response = await checkCanReview(id);
+      console.log('📋 [OrderDetail] Review status response:', response.data);
+      if (response.data?.success) {
+        setReviewStatus(response.data.data);
+        console.log('📋 [OrderDetail] Review status set:', response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading review status:', error);
+    }
+  };
+
+  const handleReviewSubmitted = () => {
+    setShowReviewForm(null);
+    loadReviewStatus();
   };
 
   const getStatusColor = (status) => {
@@ -216,39 +245,90 @@ const OrderDetailPage = () => {
           </div>
           
           <div className="space-y-4">
-            {order.items?.map((item, index) => (
-              <div key={index} className="flex items-center space-x-4 pb-4 border-b last:border-b-0">
-                {/* Product Image */}
-                <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  {item.image ? (
-                    <img
-                      src={item.image}
-                      alt={item.title || 'Product'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-8 h-8 text-gray-400" />
+            {order.items?.map((item, index) => {
+              const itemProductId = typeof item.product === 'object' ? item.product._id : item.product;
+              const productReviewStatus = reviewStatus?.products?.find(
+                p => p.productId === itemProductId
+              );
+              
+              console.log('🔍 [OrderDetail] Item product:', item.product);
+              console.log('🔍 [OrderDetail] Item product ID:', itemProductId);
+              console.log('🔍 [OrderDetail] Review status for this product:', productReviewStatus);
+              console.log('🔍 [OrderDetail] Order status:', order.status);
+              console.log('🔍 [OrderDetail] Can review?:', productReviewStatus?.canReview);
+              console.log('🔍 [OrderDetail] Has review?:', productReviewStatus?.hasReview);
+              console.log('🔍 [OrderDetail] Show button?:', order.status === 'delivered' && productReviewStatus && productReviewStatus.canReview);
+              
+              return (
+                <div key={index} className="space-y-3">
+                  <div className="flex items-center space-x-4 pb-4 border-b">
+                    {/* Product Image */}
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.title || 'Product'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{item.title || 'Product'}</h4>
+                      <p className="text-sm text-gray-600">Quantity: {item.qty}</p>
+                      <p className="text-sm text-gray-600">Price: Rs {item.price?.toLocaleString()} each</p>
+                    </div>
+
+                    {/* Item Total & Review Button */}
+                    <div className="text-right flex flex-col items-end gap-2">
+                      <div>
+                        <p className="text-sm text-gray-600">Total</p>
+                        <p className="font-semibold text-lg text-gray-900">
+                          Rs {(item.price * item.qty)?.toLocaleString()}
+                        </p>
+                      </div>
+                      
+                      {/* Review Button/Status */}
+                      {order.status === 'delivered' && productReviewStatus && (
+                        <div className="mt-1">
+                          {productReviewStatus.hasReview ? (
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <Star className="w-3 h-3 fill-green-600" />
+                              <span>Reviewed</span>
+                            </div>
+                          ) : productReviewStatus.canReview ? (
+                            <button
+                              onClick={() => setShowReviewForm(itemProductId)}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1.5 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
+                            >
+                              <Star className="w-3.5 h-3.5" />
+                              Write Review
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Review Form */}
+                  {showReviewForm === itemProductId && (
+                    <div className="ml-28">
+                      <ReviewForm
+                        orderId={order._id}
+                        productId={itemProductId}
+                        productTitle={item.title}
+                        onReviewSubmitted={handleReviewSubmitted}
+                      />
                     </div>
                   )}
                 </div>
-
-                {/* Product Info */}
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{item.title || 'Product'}</h4>
-                  <p className="text-sm text-gray-600">Quantity: {item.qty}</p>
-                  <p className="text-sm text-gray-600">Price: Rs {item.price?.toLocaleString()} each</p>
-                </div>
-
-                {/* Item Total */}
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Total</p>
-                  <p className="font-semibold text-lg text-gray-900">
-                    Rs {(item.price * item.qty)?.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Order Summary */}

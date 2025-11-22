@@ -18,6 +18,9 @@ const User = require('../models/User');
 const { authenticate } = require('../middleware/authenticate');
 const { requireRole } = require('../middleware/requireRole');
 
+// Services
+const { sendDeliveryConfirmationEmail } = require('../services/paymentEscrowService');
+
 // Helper function to get artisan ID from user
 const getArtisanId = async (user) => {
   try {
@@ -933,9 +936,32 @@ router.patch('/orders/:id/status', authenticate, requireRole(['artisan']), async
     if (status === 'delivered') {
       order.shippingDetails = order.shippingDetails || {};
       order.shippingDetails.deliveredAt = new Date();
+      order.shippingDetails.deliveryConfirmedAt = new Date();
+      order.shippingDetails.deliveryConfirmedBy = artisanId;
+      
+      // For COD orders, mark payment as completed upon delivery
+      if (order.paymentInfo.method === 'cod' && order.paymentInfo.status !== 'completed') {
+        order.paymentInfo.status = 'completed';
+        order.paymentInfo.paidAt = new Date();
+      }
+      
+      // NOTE: Escrow is NOT released automatically - admin must manually release
     }
     
     await order.save();
+    
+    // Send delivery confirmation email to buyer if order is delivered
+    if (status === 'delivered') {
+      try {
+        await order.populate('buyer', 'name email');
+        await order.populate('items.product', 'title');
+        await sendDeliveryConfirmationEmail(order);
+        console.log('✅ Delivery confirmation email sent to buyer');
+      } catch (emailError) {
+        console.error('❌ Delivery confirmation email failed (non-critical):', emailError.message);
+        // Continue - order is still updated even if email fails
+      }
+    }
     
     console.log(`✅ Order ${id} status updated to: ${status}`);
     

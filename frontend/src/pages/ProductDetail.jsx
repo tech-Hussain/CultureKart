@@ -10,6 +10,7 @@ import { useCart } from '../context/CartContext';
 import api from '../api/api';
 import { getImageDisplayUrl, convertIpfsToHttp } from '../utils/ipfs';
 import { startConversation } from '../services/messageService';
+import ProductReviews from '../components/ProductReviews';
 import Swal from 'sweetalert2';
 
 function ProductDetail() {
@@ -728,23 +729,7 @@ function ProductDetail() {
 
             {activeTab === 'reviews' && (
               <div className="space-y-4">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Customer Reviews</h3>
-                {product.rating && product.rating.count > 0 ? (
-                  <div className="text-center py-10 text-gray-500">
-                    <span className="text-5xl">⭐</span>
-                    <h4 className="text-lg font-semibold mt-3 mb-2">
-                      {product.rating.average.toFixed(1)} out of 5 stars
-                    </h4>
-                    <p className="text-sm">Based on {product.rating.count} reviews</p>
-                    <p className="text-xs mt-3 text-gray-400">Individual reviews coming soon...</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-gray-500">
-                    <span className="text-5xl">📝</span>
-                    <h4 className="text-lg font-semibold mt-3 mb-2">No Reviews Yet</h4>
-                    <p className="text-sm">Be the first to review this handcrafted product!</p>
-                  </div>
-                )}
+                <ProductReviews productId={product._id} />
               </div>
             )}
           </div>

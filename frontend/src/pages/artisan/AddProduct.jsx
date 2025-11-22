@@ -2,7 +2,7 @@
  * Add New Product Page
  * Comprehensive form for adding products to artisan store
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../api/api';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,6 +18,7 @@ function AddProduct() {
   const [success, setSuccess] = useState('');
   const [productImages, setProductImages] = useState([]);
   const [productVideo, setProductVideo] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -31,19 +32,20 @@ function AddProduct() {
     deliveryTime: '',
   });
 
-  const categories = [
-    'Textiles & Fabrics',
-    'Pottery & Ceramics',
-    'Woodwork',
-    'Jewelry',
-    'Metalwork',
-    'Hand-painted Items',
-    'Embroidery',
-    'Leather Goods',
-    'Traditional Clothing',
-    'Home Decor',
-    'Other',
-  ];
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/categories');
+        const cats = response.data.data.categories || [];
+        setCategories(cats.filter(c => c.isActive).map(c => c.name));
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setError('Failed to load categories');
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const artisanCategories = [
     'Traditional Craft',

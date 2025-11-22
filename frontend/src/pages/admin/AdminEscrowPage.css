@@ -1,0 +1,22 @@
+/* SweetAlert2 button styling for escrow dialogs */
+.swal2-confirm {
+  background-color: #059669 !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.swal2-confirm:hover {
+  background-color: #047857 !important;
+}
+
+.swal2-cancel {
+  background-color: #dc2626 !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.swal2-cancel:hover {
+  background-color: #b91c1c !important;
+}

@@ -5,9 +5,9 @@ import {
   ShoppingBagIcon,
   ShoppingCartIcon,
   CurrencyDollarIcon,
+  BanknotesIcon,
+  ShieldCheckIcon,
   TagIcon,
-  MegaphoneIcon,
-  LifebuoyIcon,
   Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 
@@ -22,10 +22,10 @@ const AdminSidebar = ({ isOpen }) => {
     { path: '/admin/users', name: 'User Management', icon: UsersIcon },
     { path: '/admin/products', name: 'Product Management', icon: ShoppingBagIcon },
     { path: '/admin/orders', name: 'Order Monitoring', icon: ShoppingCartIcon },
+    { path: '/admin/withdrawals', name: 'Withdrawals', icon: BanknotesIcon },
+    { path: '/admin/escrow', name: 'Escrow Management', icon: ShieldCheckIcon },
     { path: '/admin/payouts', name: 'Payout Management', icon: CurrencyDollarIcon },
-    { path: '/admin/categories', name: 'Categories & Tags', icon: TagIcon },
-    { path: '/admin/cms', name: 'CMS & Marketing', icon: MegaphoneIcon },
-    { path: '/admin/support', name: 'Support & Tickets', icon: LifebuoyIcon },
+    { path: '/admin/categories', name: 'Categories', icon: TagIcon },
   ];
 
   return (

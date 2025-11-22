@@ -53,73 +53,24 @@ router.post(
         });
       }
 
-      // Calculate available balance (delivered orders minus previous withdrawals)
-      // For COD orders, payment is received on delivery, so delivered status = payment received
-      const deliveredOrders = await Order.aggregate([
-        {
-          $match: {
-            'items.artisan': artisan._id,
-            status: 'delivered',
-            $or: [
-              { 'paymentInfo.status': 'completed' }, // Stripe/card payments
-              { 'paymentInfo.method': 'cod' }, // COD orders (cash received on delivery)
-            ],
-          },
-        },
-        { $unwind: '$items' },
-        {
-          $match: {
-            'items.artisan': artisan._id,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: {
-              $sum: {
-                $multiply: ['$items.price', '$items.qty'],
-              },
-            },
-          },
-        },
-      ]);
-
-      const totalEarnings = deliveredOrders.length > 0 ? deliveredOrders[0].total : 0;
-
-      // Get total withdrawn
-      const totalWithdrawn = await Withdrawal.aggregate([
-        {
-          $match: {
-            artisan: artisan._id,
-            status: { $in: ['completed', 'processing', 'pending'] },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$amount' },
-          },
-        },
-      ]);
-
-      const withdrawn = totalWithdrawn.length > 0 ? totalWithdrawn[0].total : 0;
-      const availableBalance = totalEarnings - withdrawn;
+      // Calculate available balance using escrow system
+      const escrowSummary = await Withdrawal.getArtisanEscrowSummary(artisan._id);
 
       console.log(`💰 Withdrawal request from ${artisan.displayName}:`);
-      console.log(`   Total Earnings: Rs ${totalEarnings}`);
-      console.log(`   Already Withdrawn: Rs ${withdrawn}`);
-      console.log(`   Available Balance: Rs ${availableBalance}`);
+      console.log(`   Total Escrow: Rs ${escrowSummary.totalEscrow}`);
+      console.log(`   Available Balance: Rs ${escrowSummary.availableBalance}`);
+      console.log(`   Pending Balance: Rs ${escrowSummary.pendingBalance}`);
       console.log(`   Requested Amount: Rs ${amount}`);
 
-      // Check if sufficient balance
-      if (amount > availableBalance) {
+      // Check if sufficient available balance
+      if (amount > escrowSummary.availableBalance) {
         return res.status(400).json({
           status: 'error',
-          message: 'Insufficient balance',
+          message: 'Insufficient available balance',
           details: {
             requested: amount,
-            available: availableBalance,
-            shortfall: amount - availableBalance,
+            available: escrowSummary.availableBalance,
+            pending: escrowSummary.pendingBalance,
           },
         });
       }
@@ -143,7 +94,7 @@ router.post(
         });
       }
 
-      // Create withdrawal record
+      // Create withdrawal record (pending admin approval)
       const processingFee = parseFloat(amount) * 0.02; // 2% fee
       const netAmount = parseFloat(amount) - processingFee;
 
@@ -159,6 +110,15 @@ router.post(
           routingNumber: bankDetails.routingNumber || '',
         },
         status: 'pending',
+        adminApproval: {
+          status: 'pending',
+        },
+        escrowDetails: {
+          totalEscrow: escrowSummary.totalEscrow,
+          availableBalance: escrowSummary.availableBalance - amount,
+          pendingBalance: escrowSummary.pendingBalance + amount,
+          orders: escrowSummary.orders,
+        },
         metadata: {
           ipAddress: req.ip || req.connection.remoteAddress,
           userAgent: req.get('user-agent'),
@@ -168,14 +128,11 @@ router.post(
 
       await withdrawal.save();
 
-      console.log(`✅ Withdrawal created: ${withdrawal._id}`);
-
-      // Process payout in background (async)
-      processWithdrawalAsync(withdrawal, artisan);
+      console.log(`✅ Withdrawal request created (pending admin approval): ${withdrawal._id}`);
 
       return res.status(201).json({
         status: 'success',
-        message: 'Withdrawal request submitted successfully',
+        message: 'Withdrawal request submitted successfully. Awaiting admin approval.',
         data: {
           withdrawal: {
             id: withdrawal._id,
@@ -183,10 +140,12 @@ router.post(
             processingFee: withdrawal.processingFee,
             netAmount: withdrawal.netAmount,
             status: withdrawal.status,
+            adminApprovalStatus: withdrawal.adminApproval.status,
             estimatedArrival: withdrawal.estimatedArrival,
             requestedAt: withdrawal.requestedAt,
           },
-          availableBalance: availableBalance - amount,
+          availableBalance: escrowSummary.availableBalance - amount,
+          pendingBalance: escrowSummary.pendingBalance + amount,
         },
       });
     } catch (error) {
@@ -334,45 +293,15 @@ router.get('/balance/available', async (req, res) => {
       });
     }
 
-    // Calculate total earnings from delivered orders
-    // For COD orders, payment is received on delivery, so delivered status = payment received
-    const deliveredOrders = await Order.aggregate([
-      {
-        $match: {
-          'items.artisan': artisan._id,
-          status: 'delivered',
-          $or: [
-            { 'paymentInfo.status': 'completed' }, // Stripe/card payments
-            { 'paymentInfo.method': 'cod' }, // COD orders (cash received on delivery)
-          ],
-        },
-      },
-      { $unwind: '$items' },
-      {
-        $match: {
-          'items.artisan': artisan._id,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: {
-            $sum: {
-              $multiply: ['$items.price', '$items.qty'],
-            },
-          },
-        },
-      },
-    ]);
+    // Calculate balance using escrow system
+    const escrowSummary = await Withdrawal.getArtisanEscrowSummary(artisan._id);
 
-    const totalEarnings = deliveredOrders.length > 0 ? deliveredOrders[0].total : 0;
-
-    // Get total withdrawn/pending
+    // Get total withdrawn/completed
     const totalWithdrawn = await Withdrawal.aggregate([
       {
         $match: {
           artisan: artisan._id,
-          status: { $in: ['completed', 'processing', 'pending'] },
+          status: 'completed',
         },
       },
       {
@@ -384,18 +313,18 @@ router.get('/balance/available', async (req, res) => {
     ]);
 
     const withdrawn = totalWithdrawn.length > 0 ? totalWithdrawn[0].total : 0;
-    const availableBalance = totalEarnings - withdrawn;
 
-    // Get pending amount
+    // Get pending withdrawal requests
     const pendingAmount = await Withdrawal.getPendingTotal(artisan._id);
 
     return res.status(200).json({
       status: 'success',
       data: {
-        totalEarnings,
-        totalWithdrawn: withdrawn,
-        availableBalance,
-        pendingWithdrawals: pendingAmount,
+        totalEscrow: escrowSummary.totalEscrow, // Total held in escrow
+        availableBalance: escrowSummary.availableBalance, // Released escrow, ready for withdrawal
+        pendingBalance: escrowSummary.pendingBalance, // Unreleased escrow (awaiting admin)
+        totalWithdrawn: withdrawn, // Already paid out
+        pendingWithdrawals: pendingAmount, // Withdrawal requests in progress
       },
     });
   } catch (error) {

@@ -56,11 +56,6 @@ function Sidebar({ isOpen, setIsOpen }) {
       path: '/artisan/messages',
       icon: ChatBubbleLeftRightIcon,
     },
-    {
-      name: 'Settings',
-      path: '/artisan/settings',
-      icon: Cog6ToothIcon,
-    },
   ];
 
   return (

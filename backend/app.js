@@ -131,10 +131,13 @@ app.get('/api/v1/network-config', (req, res) => {
 // Mount API routes
 app.use('/api/v1/auth', require('./src/routes/auth'));
 app.use('/api/v1/products', require('./src/routes/products'));
+app.use('/api/v1/categories', require('./src/routes/categories'));
 app.use('/api/v1/payments', require('./src/routes/payments'));
 app.use('/api/v1/admin', require('./src/routes/admin'));
 app.use('/api/v1/admin', require('./src/routes/adminCommission'));
-app.use('/api/v1/admin/withdrawals', require('./src/routes/adminWithdrawal'));
+app.use('/api/v1/admin/withdrawals', require('./src/routes/admin/withdrawals'));
+app.use('/api/v1/admin/escrow', require('./src/routes/admin/escrow'));
+app.use('/api/v1/admin/categories', require('./src/routes/admin/categories'));
 app.use('/api/v1/orders', require('./src/routes/orders'));
 app.use('/api/v1/cart', require('./src/routes/cart'));
 app.use('/api/v1/stripe', require('./src/routes/stripe'));
@@ -142,6 +145,7 @@ app.use('/api/v1/artisan', require('./src/routes/artisan'));
 app.use('/api/v1/artisan/withdrawals', require('./src/routes/withdrawal'));
 app.use('/api/v1/seller', require('./src/routes/sellerDashboard'));
 app.use('/api/v1/messages', require('./src/routes/messages'));
+app.use('/api/v1/reviews', require('./src/routes/reviews'));
 app.use('/api/v1/home', require('./src/routes/home'));
 app.use('/api/v1/verification', require('./src/routes/verification'));
 app.use('/api/v1/delivery', require('./src/routes/delivery'));

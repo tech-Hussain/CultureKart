@@ -25,7 +25,7 @@ function Wallet() {
         
         console.log('💰 Balance data:', balanceData);
         setBalance(balanceData.availableBalance || 0);
-        setPendingAmount(balanceData.pendingWithdrawals || 0);
+        setPendingAmount(balanceData.pendingBalance || 0); // Unreleased escrow
 
         // Fetch order transactions
         const ordersResponse = await getArtisanOrders({ limit: 10, status: 'delivered' });

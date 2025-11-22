@@ -152,6 +152,10 @@ router.post('/cod', authenticate, async (req, res) => {
     const tax = subtotal * 0.05;
     const total = subtotal + deliveryCharges + tax;
 
+    // Calculate commission split (90% artisan, 10% platform)
+    const platformCommission = Math.round(total * 0.10);
+    const artisanShare = total - platformCommission;
+
     // Create order items
     const orderItems = cartItems.map(item => ({
       product: item.product._id,
@@ -173,7 +177,19 @@ router.post('/cod', authenticate, async (req, res) => {
         method: 'cod',
         status: 'pending'
       },
-      shippingAddress: shippingAddress
+      shippingAddress: shippingAddress,
+      paymentDistribution: {
+        escrowAmount: total,
+        escrowReleased: false,
+        artisanPayout: {
+          amount: artisanShare,
+          paid: false,
+        },
+        platformCommission: {
+          amount: platformCommission,
+          collected: false,
+        },
+      }
     });
 
     console.log('📦 Order created:', order._id);

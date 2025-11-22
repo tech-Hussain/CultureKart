@@ -15,6 +15,7 @@ function ProductList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
+  const [categories, setCategories] = useState(['All']);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -27,19 +28,6 @@ function ProductList() {
     minPrice: '',
     maxPrice: '',
   });
-
-  // Categories for filtering
-  const categories = [
-    'All',
-    'Textiles',
-    'Pottery',
-    'Metal Work',
-    'Woodwork',
-    'Jewelry',
-    'Decor',
-    'Paintings',
-    'Other',
-  ];
 
   // Fetch products from API
   const fetchProducts = async (page = 1) => {
@@ -85,6 +73,20 @@ function ProductList() {
       setLoading(false);
     }
   };
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/categories');
+        const cats = response.data.data.categories || [];
+        setCategories(['All', ...cats.map(c => c.name)]);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // Fetch products on mount and when filters change
   useEffect(() => {

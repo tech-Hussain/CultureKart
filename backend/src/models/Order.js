@@ -234,6 +234,16 @@ const orderSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+      // Who released the escrow (admin approval)
+      escrowReleasedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      escrowReleaseNotes: {
+        type: String,
+        default: '',
+      },
       // Artisan payout (90%)
       artisanPayout: {
         amount: {
@@ -398,6 +408,12 @@ orderSchema.methods.markAsDelivered = async function () {
   this.status = 'delivered';
   this.shippingDetails.deliveredAt = Date.now();
   
+  // For COD orders, mark payment as completed upon delivery
+  if (this.paymentInfo.method === 'cod' && this.paymentInfo.status !== 'completed') {
+    this.paymentInfo.status = 'completed';
+    this.paymentInfo.paidAt = Date.now();
+  }
+  
   return await this.save();
 };
 
@@ -423,6 +439,26 @@ orderSchema.methods.refundOrder = async function (amount, reason, transactionId)
   this.refund.reason = reason;
   this.refund.refundedAt = Date.now();
   this.refund.transactionId = transactionId;
+  
+  return await this.save();
+};
+
+// Instance method: Release escrow (admin only)
+orderSchema.methods.releaseEscrow = async function (adminId, notes) {
+  if (this.status !== 'delivered') {
+    throw new Error('Escrow can only be released for delivered orders');
+  }
+  
+  if (this.paymentDistribution.escrowReleased) {
+    throw new Error('Escrow has already been released for this order');
+  }
+  
+  this.paymentDistribution.escrowReleased = true;
+  this.paymentDistribution.escrowReleasedAt = Date.now();
+  this.paymentDistribution.escrowReleasedBy = adminId;
+  if (notes) {
+    this.paymentDistribution.escrowReleaseNotes = notes;
+  }
   
   return await this.save();
 };

@@ -59,9 +59,9 @@ import UserManagement from './pages/admin/UserManagement';
 import ProductManagement from './pages/admin/ProductManagement';
 import OrderMonitoring from './pages/admin/OrderMonitoring';
 import PayoutManagement from './pages/admin/PayoutManagement';
-import CategoriesManagement from './pages/admin/CategoriesManagement';
-import CMSMarketing from './pages/admin/CMSMarketing';
-import SupportTickets from './pages/admin/SupportTickets';
+import CategoriesPage from './pages/admin/CategoriesPage';
+import AdminWithdrawalPage from './pages/admin/AdminWithdrawalPage';
+import AdminEscrowPage from './pages/admin/AdminEscrowPage';
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
@@ -287,9 +287,9 @@ function AppContent() {
               <Route path="products" element={<ProductManagement />} />
               <Route path="orders" element={<OrderMonitoring />} />
               <Route path="payouts" element={<PayoutManagement />} />
-              <Route path="categories" element={<CategoriesManagement />} />
-              <Route path="cms" element={<CMSMarketing />} />
-              <Route path="support" element={<SupportTickets />} />
+              <Route path="withdrawals" element={<AdminWithdrawalPage />} />
+              <Route path="escrow" element={<AdminEscrowPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
             </Route>
 
             <Route
