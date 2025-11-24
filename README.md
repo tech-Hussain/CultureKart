@@ -1,150 +1,150 @@
-# CultureKart 🛍️
+# 🎨 CultureKart - Blockchain-Powered Artisan Marketplace
 
-**CultureKart** is a MERN-based e-commerce platform connecting Pakistani artisans directly to global buyers. It combines modern web technologies with blockchain for product provenance and authenticity verification.
+> **A comprehensive e-commerce platform connecting artisans with global buyers, featuring blockchain-based product verification, secure escrow payments, and sophisticated multi-stakeholder management.**
 
----
+[![Node.js](https://img.shields.io/badge/Node.js-22.14.0-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green.svg)](https://www.mongodb.com/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.19-purple.svg)](https://soliditylang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 🚀 Quick Start (5 Minutes)
+**CultureKart** is a full-stack MERN marketplace platform that empowers artisans to sell handcrafted products globally while ensuring authenticity through blockchain technology. The platform features a sophisticated escrow system, admin-controlled payment releases, and dual authentication mechanisms.
 
-**Already have accounts?** Skip to detailed setup below. New developers start here:
+# 🎨 CultureKart - Blockchain-Powered Artisan Marketplace
 
-```bash
-# 1. Clone and install
-git clone https://github.com/tech-Hussain/CultureKart.git
-cd CultureKart
+> **A comprehensive e-commerce platform connecting artisans with global buyers, featuring blockchain-based product verification, secure escrow payments, and sophisticated multi-stakeholder management.**
 
-# 2. Backend setup
-cd backend
-npm install
-cp .env.example .env
-# Edit .env with your credentials (see setup guide below)
-node scripts/seed.js
-npm run dev  # Runs on http://localhost:5000
-
-# 3. Frontend setup (new terminal)
-cd ../frontend
-npm install
-cp .env.example .env
-# Edit .env with your Firebase config
-npm run dev  # Runs on http://localhost:5173
-
-# 4. Smart contracts (optional for development)
-cd ../contracts
-npm install
-npx hardhat compile
-```
-
-**First time?** You'll need accounts for:
-- 🔥 [Firebase](https://console.firebase.google.com/) (Authentication)
-- 🗄️ [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (Database)
-- 💳 [Stripe](https://dashboard.stripe.com/) (Payments)
-- 📦 [NFT.Storage](https://nft.storage/) (IPFS)
-- ⛓️ [Alchemy](https://www.alchemy.com/) (Blockchain RPC)
-
-See **complete setup guide** below for step-by-step instructions.
+[![Node.js](https://img.shields.io/badge/Node.js-22.14.0-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green.svg)](https://www.mongodb.com/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.19-purple.svg)](https://soliditylang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 🎯 Features
+## 📋 Instructor Quick Start Guide
 
-- **Artisan Marketplace**: Direct connection between Pakistani artisans and global customers
-- **Blockchain Provenance**: Solidity smart contracts for product authenticity tracking
-- **Multi-Payment Support**: Integrated Stripe payment gateway with test mode
-- **Decentralized Storage**: IPFS for product media and metadata
-- **Firebase Authentication**: Google Sign-in with secure backend verification
-- **Admin Dashboard**: Analytics and charts for inventory, sales, and user management
-- **Responsive Design**: Tailwind CSS with Pakistani cultural motifs (Ajrak, truck art)
+**This guide assumes you have NO dependencies installed and need complete setup instructions from scratch.**
+
+### 🎯 What You'll Get Running
+1. **Backend Server** (Node.js + Express + MongoDB) → `http://localhost:5000`
+2. **Frontend Application** (React + Vite) → `http://localhost:5173`
+3. **Smart Contracts** (Ethereum Sepolia Testnet) → Optional but recommended
+4. **Admin Dashboard** with full analytics and control
+5. **Complete e-commerce flow** (Browse → Cart → Checkout → Order Management)
+
+### ⏱️ Total Setup Time
+- **Quick Path (existing database)**: 10-15 minutes
+- **Complete Path (from scratch)**: 30-45 minutes
 
 ---
 
 ## 📚 Table of Contents
 
-- [Quick Start](#-quick-start-5-minutes)
-- [Features](#-features)
-- [Architecture](#️-architecture)
-- [Project Structure](#-project-structure)
-- [Complete Setup Guide](#-getting-started)
-  - [1. Clone Repository](#1️⃣-clone-the-repository)
-  - [2. MongoDB Setup](#2️⃣-mongodb-setup)
-  - [3. Firebase Setup](#3️⃣-firebase-setup)
-  - [4. Stripe Setup](#4️⃣-stripe-setup)
-  - [5. IPFS/NFT.Storage Setup](#5️⃣-ipfs--nftstorage-setup)
-  - [6. Blockchain Setup](#6️⃣-blockchain-setup-sepolia-testnet)
-  - [7. Backend Setup](#7️⃣-backend-setup)
-  - [8. Frontend Setup](#8️⃣-frontend-setup)
-  - [9. Smart Contract Deployment](#9️⃣-smart-contract-deployment)
-  - [10. Verify Setup](#-verify-setup)
-- [Environment Variables](#-environment-variables)
-- [Command Reference](#-quick-command-reference)
-- [Testing](#-testing)
-- [Troubleshooting](#-troubleshooting)
-- [Security Best Practices](#-security-best-practices)
-- [Deployment](#-production-deployment)
-- [Contributing](#-contributing)
-- [License](#-license)
+1. [Prerequisites & Installation](#-prerequisites--installation)
+2. [Environment Setup](#-environment-setup)
+3. [Database Configuration](#-database-configuration)
+4. [Running the Application](#-running-the-application)
+5. [Testing & Verification](#-testing--verification)
+6. [Admin Access](#-admin-access)
+7. [Key Features to Evaluate](#-key-features-to-evaluate)
+8. [Project Structure](#-project-structure)
+9. [API Documentation](#-api-documentation)
+10. [Troubleshooting](#-troubleshooting)
+11. [Technical Architecture](#-technical-architecture)
 
 ---
 
-## 🏗️ Architecture
+## 🔧 Prerequisites & Installation
 
-CultureKart follows a layered architecture:
+### Step 1: Install Node.js
 
-```
-┌─────────────────────────────────────────────┐
-│          Client Layer (React + Vite)        │
-│         Tailwind CSS, Recharts              │
-└─────────────────┬───────────────────────────┘
-                  │
-┌─────────────────▼───────────────────────────┐
-│     Application Layer (Node + Express)      │
-│      API Routes (/api/v1), Middleware       │
-└─────────────────┬───────────────────────────┘
-                  │
-    ┌─────────────┴─────────────┐
-    │                           │
-┌───▼──────────────┐   ┌────────▼─────────────┐
-│   Data Layer     │   │  Blockchain Layer    │
-│   (MongoDB)      │   │  (Solidity/Hardhat)  │
-│   Mongoose ODM   │   │  Product Provenance  │
-└──────────────────┘   └──────────────────────┘
+**Required Version**: Node.js v22.14.0 or higher
+
+**Windows Installation**:
+```powershell
+# Download from official website
+# Visit: https://nodejs.org/
+# Download: "LTS" version (includes npm)
+
+# Verify installation
+node --version  # Should output: v22.14.0 or higher
+npm --version   # Should output: v10.9.2 or higher
 ```
 
-## 📁 Project Structure
-
-```
-CultureKart/
-├── frontend/          # React + Vite application
-├── backend/           # Node.js + Express API
-├── contracts/         # Solidity smart contracts
-├── infra/            # Infrastructure configs
-└── README.md
+**Alternative (using winget)**:
+```powershell
+winget install OpenJS.NodeJS.LTS
 ```
 
-## 🚀 Getting Started
+### Step 2: Install Git (if not already installed)
 
-### Prerequisites
+```powershell
+# Check if Git is installed
+git --version
 
-Before you begin, ensure you have the following installed:
+# If not installed, download from:
+# https://git-scm.com/download/win
+```
 
-- **Node.js** v18 or higher ([Download](https://nodejs.org/))
-- **npm** or **yarn** package manager
-- **Git** for version control
-- **MongoDB** (local installation or Atlas account)
-- **MetaMask** browser extension (for blockchain interactions)
-- **Code Editor** (VS Code recommended)
+### Step 3: Clone the Repository
 
-### 📋 Complete Setup Guide
+```powershell
+# Navigate to your desired directory
+cd "D:\Hussain Project"
 
-Follow these steps in order to set up the entire CultureKart platform:
-
----
-
-## 1️⃣ Clone the Repository
-
-```bash
+# Clone (if not already cloned)
 git clone https://github.com/tech-Hussain/CultureKart.git
 cd CultureKart
+
+# Verify structure
+ls
+# You should see: backend/, frontend/, contracts/, README.md
 ```
+
+### Step 4: Install Backend Dependencies
+
+```powershell
+cd backend
+npm install
+```
+
+**Expected Installation Time**: 2-3 minutes
+
+**Key Packages Installed**:
+- express, mongoose, jsonwebtoken, bcryptjs
+- ethers, @pinata/sdk, ipfs-http-client
+- stripe, firebase-admin, nodemailer
+- cors, dotenv, helmet, express-rate-limit
+
+**If you encounter errors**, try:
+```powershell
+# Clear npm cache
+npm cache clean --force
+
+# Delete package-lock.json and node_modules
+Remove-Item -Recurse -Force node_modules, package-lock.json
+
+# Reinstall
+npm install
+```
+
+### Step 5: Install Frontend Dependencies
+
+```powershell
+cd ..\frontend
+npm install
+```
+
+**Expected Installation Time**: 3-5 minutes
+
+**Key Packages Installed**:
+- react, react-dom, react-router-dom
+- tailwindcss, postcss, autoprefixer
+- axios, sweetalert2, recharts, lucide-react
+- firebase (client SDK)
+
+### Step 6: Install Smart Contract Dependencies (Optional)
 
 ---
 

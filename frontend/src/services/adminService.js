@@ -34,7 +34,7 @@ export const getTopProducts = async () => {
 export const getArtisans = async (params = {}) => {
   // Remove undefined values from params
   const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
   );
   const queryString = new URLSearchParams(cleanParams).toString();
   return apiRequest(`/admin/artisans${queryString ? `?${queryString}` : ''}`, 'GET');
@@ -61,7 +61,7 @@ export const getUsers = async (params = {}) => {
   console.log('👥 Fetching users with params:', params);
   // Remove undefined values from params
   const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
   );
   const queryString = new URLSearchParams(cleanParams).toString();
   const response = await apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`, 'GET');
@@ -76,7 +76,7 @@ export const getProducts = async (params = {}) => {
   console.log('📦 Fetching products with params:', params);
   // Remove undefined values from params
   const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
   );
   const queryString = new URLSearchParams(cleanParams).toString();
   const response = await apiRequest(`/admin/products${queryString ? `?${queryString}` : ''}`, 'GET');
@@ -91,7 +91,7 @@ export const getOrders = async (params = {}) => {
   console.log('📋 Fetching orders with params:', params);
   // Remove undefined values from params
   const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
   );
   const queryString = new URLSearchParams(cleanParams).toString();
   const response = await apiRequest(`/admin/orders${queryString ? `?${queryString}` : ''}`, 'GET');
@@ -115,7 +115,7 @@ export const verifyProduct = async (productId, verified) => {
 export const getWithdrawals = async (params = {}) => {
   console.log('\ud83d\udcb0 Fetching withdrawals with params:', params);
   const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
   );
   const queryString = new URLSearchParams(cleanParams).toString();
   const response = await apiRequest(`/admin/withdrawals${queryString ? `?${queryString}` : ''}`, 'GET');

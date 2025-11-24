@@ -89,7 +89,7 @@ const CategoriesPage = () => {
       await api.post('/admin/categories/sync');
       Swal.fire('Success', 'Product counts synced successfully', 'success');
       fetchCategories();
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'Failed to sync product counts', 'error');
     }
   };

@@ -31,11 +31,6 @@ const AdminWithdrawalPage = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('pending'); // 'pending' or 'all'
   const [statusFilter, setStatusFilter] = useState('');
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
-
-  useEffect(() => {
-    loadData();
-  }, [view, statusFilter]);
 
   const loadData = async () => {
     try {
@@ -60,6 +55,11 @@ const AdminWithdrawalPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, statusFilter]);
 
   const handleApprove = async (withdrawalId) => {
     const result = await Swal.fire({
