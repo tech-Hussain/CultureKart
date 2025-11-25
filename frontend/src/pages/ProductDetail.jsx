@@ -551,8 +551,6 @@ function ProductDetail() {
             <nav className="flex space-x-6 px-6 pt-4">
               {[
                 { id: 'description', label: 'Description', icon: '📋' },
-                { id: 'specifications', label: 'Details', icon: '📐' },
-                { id: 'artisan', label: 'Artisan Story', icon: '✨' },
                 { id: 'reviews', label: 'Reviews', icon: '⭐' }
               ].map((tab) => (
                 <button
@@ -663,65 +661,6 @@ function ProductDetail() {
                         </span>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'artisan' && (
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Meet the Artisan</h3>
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border-2 border-maroon-200">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-maroon-500 to-orange-500 rounded-full flex items-center justify-center text-2xl text-white shadow-lg">
-                      👨‍🎨
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-bold text-gray-900">
-                        {product.artisan?.displayName || 'Master Artisan'}
-                      </h4>
-                      {product.artisan?.location && (
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          📍 {product.artisan.location}
-                        </p>
-                      )}
-                      {product.artisan?.verified && (
-                        <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
-                          ✓ Verified Artisan
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-3 text-sm text-gray-700">
-                    <p className="leading-relaxed">
-                      This exquisite piece is handcrafted by skilled Pakistani artisans who have inherited their craft through generations. Each product represents hours of dedicated work, traditional techniques, and a deep connection to cultural heritage.
-                    </p>
-                    <p className="leading-relaxed">
-                      By purchasing this item, you're directly supporting local artisans and helping preserve Pakistan's rich cultural traditions for future generations.
-                    </p>
-                    <div className="bg-white rounded-md p-3 mt-3">
-                      <h5 className="font-semibold text-maroon-800 mb-2 flex items-center gap-2">
-                        🌟 Why Support Artisans?
-                      </h5>
-                      <ul className="space-y-1.5 text-xs">
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600">✓</span>
-                          <span>Fair compensation for skilled craftsmanship</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600">✓</span>
-                          <span>Preservation of traditional art forms</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600">✓</span>
-                          <span>Economic empowerment of local communities</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-green-600">✓</span>
-                          <span>Sustainable and eco-friendly production</span>
-                        </li>
-                      </ul>
-                    </div>
                   </div>
                 </div>
               </div>

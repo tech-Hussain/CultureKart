@@ -9,6 +9,7 @@ const Order = require('../models/Order');
 const { authenticate } = require('../middleware/authenticate');
 const User = require('../models/User');
 const Cart = require('../models/Cart');
+const Product = require('../models/Product');
 const { generateOrderAuthenticationCodes } = require('../services/orderAuthenticationService');
 const { sendOrderPlacedEmail } = require('../services/paymentEscrowService');
 
@@ -146,6 +147,23 @@ router.post('/cod', authenticate, async (req, res) => {
       });
     }
 
+    // Check stock availability and prepare for decrement
+    for (const item of cartItems) {
+      const product = await Product.findById(item.product._id);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: `Product ${item.productName} not found`
+        });
+      }
+      if (product.stock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock for ${item.productName}. Available: ${product.stock}, Requested: ${item.quantity}`
+        });
+      }
+    }
+
     // Calculate totals
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const deliveryCharges = subtotal > 0 ? 150 : 0;
@@ -194,6 +212,16 @@ router.post('/cod', authenticate, async (req, res) => {
 
     console.log('📦 Order created:', order._id);
     console.log('🔢 Order items count:', order.items.length);
+
+    // Decrement stock for each ordered item
+    for (const item of cartItems) {
+      await Product.findByIdAndUpdate(
+        item.product._id,
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+      console.log(`📉 Stock decremented for product ${item.productName}: -${item.quantity}`);
+    }
 
     // Generate QR codes for product authentication
     try {
@@ -358,6 +386,23 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
+    // Validate and check stock availability for each item
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: `Product not found for item: ${item.title || 'Unknown'}`
+        });
+      }
+      if (product.stock < item.qty) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${item.qty}`
+        });
+      }
+    }
+
     // Calculate total
     const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
@@ -377,6 +422,16 @@ router.post('/', authenticate, async (req, res) => {
     });
 
     await order.save();
+
+    // Decrement stock for each ordered item
+    for (const item of items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: -item.qty } },
+        { new: true }
+      );
+      console.log(`📉 Stock decremented for product ${item.title}: -${item.qty}`);
+    }
 
     return res.status(201).json({
       success: true,
