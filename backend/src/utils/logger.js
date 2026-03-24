@@ -13,16 +13,23 @@ class PapertrailHttpTransport extends Transport {
     super(opts);
     this.endpoint = opts.endpoint;
     this.token = opts.token;
+    this.disabled = false;
+    this.disabledReason = null;
   }
 
   log(info, callback) {
+    if (this.disabled) {
+      callback();
+      return;
+    }
+
     setImmediate(() => {
       this.emit('logged', info);
     });
 
     // Extract all metadata (exclude Winston's internal fields)
     const { timestamp, level, message, service, environment, ...metadata } = info;
-    
+
     // Format log entry with full details for SolarWinds
     const logData = {
       timestamp,
@@ -32,7 +39,7 @@ class PapertrailHttpTransport extends Transport {
       environment,
       ...metadata,
     };
-    
+
     const logMessage = `${timestamp} [${level}]: ${message}\n${JSON.stringify(logData, null, 2)}\n`;
 
     // Send to Papertrail via HTTP (matching curl example format)
@@ -44,8 +51,13 @@ class PapertrailHttpTransport extends Transport {
     }).then(() => {
       // Success - log sent
     }).catch(err => {
-      // Silent fail - don't break app if logging fails
-      if (err.response) {
+      // Silent fail - don't break app if logging fails.
+      // Disable repeated attempts when token is invalid/disabled.
+      if (err.response && err.response.status === 401) {
+        this.disabled = true;
+        this.disabledReason = '401 Unauthorized';
+        console.error('Papertrail transport disabled: 401 Unauthorized (check PAPERTRAIL_TOKEN).');
+      } else if (err.response) {
         console.error('Papertrail log failed:', err.response.status, err.response.statusText);
         console.error('Response:', err.response.data);
       } else {
@@ -81,14 +93,14 @@ const logger = winston.createLogger({
         winston.format.colorize(),
         winston.format.printf(({ timestamp, level, message, service, environment, event, ...meta }) => {
           let msg = `${timestamp} [${level}]: ${message}`;
-          
+
           // Show full details for: locked IP events + successful admin logins
-          if (event === 'admin_login_failed_locked' || 
-              event === 'admin_login_blocked' || 
-              event === 'admin_login_success') {
+          if (event === 'admin_login_failed_locked' ||
+            event === 'admin_login_blocked' ||
+            event === 'admin_login_success') {
             msg += `\n${JSON.stringify(meta, null, 2)}`;
           }
-          
+
           return msg;
         })
       ),

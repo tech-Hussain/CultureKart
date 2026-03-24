@@ -128,6 +128,7 @@ const transactionSchema = new mongoose.Schema({
   },
 }, {
   timestamps: true,
+  suppressReservedKeysWarning: true,
 });
 
 // Indexes for efficient queries
@@ -138,13 +139,13 @@ transactionSchema.index({ 'stripe.paymentIntentId': 1 });
 transactionSchema.index({ createdAt: -1 });
 
 // Pre-save middleware: Update timestamp
-transactionSchema.pre('save', function(next) {
+transactionSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
 // Instance method: Add status to history
-transactionSchema.methods.updateStatus = function(newStatus, reason, updatedBy) {
+transactionSchema.methods.updateStatus = function (newStatus, reason, updatedBy) {
   this.statusHistory.push({
     status: newStatus,
     reason,
@@ -156,7 +157,7 @@ transactionSchema.methods.updateStatus = function(newStatus, reason, updatedBy) 
 };
 
 // Instance method: Log error
-transactionSchema.methods.logError = function(errorType, errorMessage) {
+transactionSchema.methods.logError = function (errorType, errorMessage) {
   this.errors.push({
     errorType,
     errorMessage,
@@ -166,10 +167,10 @@ transactionSchema.methods.logError = function(errorType, errorMessage) {
 };
 
 // Static method: Calculate commission split (90/10)
-transactionSchema.statics.calculateCommissionSplit = function(totalAmount) {
+transactionSchema.statics.calculateCommissionSplit = function (totalAmount) {
   const platformCommission = Math.round(totalAmount * 0.10); // 10%
   const artisanShare = totalAmount - platformCommission; // 90%
-  
+
   return {
     total: totalAmount,
     artisanShare,
@@ -178,7 +179,7 @@ transactionSchema.statics.calculateCommissionSplit = function(totalAmount) {
 };
 
 // Static method: Get pending payouts for artisan
-transactionSchema.statics.getPendingPayouts = async function(artisanId) {
+transactionSchema.statics.getPendingPayouts = async function (artisanId) {
   return this.find({
     artisan: artisanId,
     status: 'held',
@@ -187,7 +188,7 @@ transactionSchema.statics.getPendingPayouts = async function(artisanId) {
 };
 
 // Static method: Get platform commission total
-transactionSchema.statics.getPlatformCommission = async function(startDate, endDate) {
+transactionSchema.statics.getPlatformCommission = async function (startDate, endDate) {
   const match = {
     type: 'platform_commission',
     status: 'completed',
@@ -214,7 +215,7 @@ transactionSchema.statics.getPlatformCommission = async function(startDate, endD
 };
 
 // Virtual: Format amounts for display
-transactionSchema.virtual('formattedAmounts').get(function() {
+transactionSchema.virtual('formattedAmounts').get(function () {
   return {
     total: `Rs ${this.amounts.total.toLocaleString()}`,
     artisanShare: `Rs ${this.amounts.artisanShare.toLocaleString()}`,

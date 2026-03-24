@@ -5,6 +5,21 @@
 
 const PendingUser = require('../models/PendingUser');
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientMongoNetworkError = (error) => {
+  const message = (error?.message || '').toLowerCase();
+  const name = (error?.name || '').toLowerCase();
+
+  return (
+    name.includes('poolclearedonnetworkerror') ||
+    name.includes('mongonetworktimeouterror') ||
+    message.includes('server monitor timeout') ||
+    message.includes('connection <monitor>') ||
+    message.includes('timed out')
+  );
+};
+
 /**
  * Clean up expired pending users
  * Runs every 30 minutes to remove expired pending registrations
@@ -16,7 +31,22 @@ const cleanupExpiredPendingUsers = async () => {
       console.log(`🧹 Cleaned up ${result.deletedCount} expired pending registrations`);
     }
   } catch (error) {
-    console.error('❌ Error cleaning up pending users:', error);
+    if (isTransientMongoNetworkError(error)) {
+      console.warn('⚠️ Transient MongoDB network issue during cleanup. Retrying once...');
+      try {
+        await sleep(2000);
+        const retryResult = await PendingUser.cleanupExpired();
+        if (retryResult.deletedCount > 0) {
+          console.log(`🧹 Cleaned up ${retryResult.deletedCount} expired pending registrations (after retry)`);
+        }
+        return;
+      } catch (retryError) {
+        console.error('❌ Pending user cleanup failed after retry:', retryError.message || retryError);
+        return;
+      }
+    }
+
+    console.error('❌ Error cleaning up pending users:', error.message || error);
   }
 };
 
@@ -27,12 +57,12 @@ const cleanupExpiredPendingUsers = async () => {
 const startCleanupJob = () => {
   // Run cleanup immediately
   cleanupExpiredPendingUsers();
-  
+
   // Schedule cleanup to run every 30 minutes (1800000 ms)
   const cleanupInterval = setInterval(cleanupExpiredPendingUsers, 30 * 60 * 1000);
-  
+
   console.log('🧹 Pending user cleanup job started (runs every 30 minutes)');
-  
+
   return cleanupInterval;
 };
 
@@ -55,7 +85,7 @@ const getPendingUserStats = async () => {
     const expiredCount = await PendingUser.countDocuments({
       createdAt: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     });
-    
+
     return {
       total,
       expired: expiredCount,

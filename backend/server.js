@@ -12,17 +12,43 @@ const { getAllNetworkAddresses } = require('./src/utils/networkUtils');
 // Configuration
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/culturekart';
+const MONGODB_URI_FALLBACK = process.env.MONGO_URI_FALLBACK || process.env.MONGODB_URI_FALLBACK;
+
+const isSrvDnsError = (error) => {
+  return Boolean(error?.message && error.message.includes('querySrv ECONNREFUSED'));
+};
+
+const connectWithUri = async (uri, label) => {
+  const conn = await mongoose.connect(uri);
+  console.log(`✅ MongoDB Connected (${label}): ${conn.connection.host}`);
+  console.log(`📊 Database: ${conn.connection.name}`);
+  return conn;
+};
 
 /**
  * Connect to MongoDB
  */
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(MONGODB_URI);
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-    console.log(`📊 Database: ${conn.connection.name}`);
+    await connectWithUri(MONGODB_URI, 'primary');
   } catch (error) {
+    if (isSrvDnsError(error)) {
+      console.warn('⚠️ MongoDB SRV DNS lookup failed for primary URI.');
+      console.warn('💡 Check internet/VPN/firewall and DNS settings, or use a non-SRV mongodb:// URI as a fallback.');
+      if (MONGODB_URI_FALLBACK) {
+        try {
+          console.log('🔁 Retrying MongoDB connection using non-SRV fallback URI...');
+          await connectWithUri(MONGODB_URI_FALLBACK, 'fallback');
+          return;
+        } catch (fallbackError) {
+          console.error('❌ MongoDB Fallback Connection Error:', fallbackError.message);
+        }
+      }
+
+      console.error('❌ MongoDB Connection Error:', error.message);
+      process.exit(1);
+    }
+
     console.error('❌ MongoDB Connection Error:', error.message);
     process.exit(1);
   }
@@ -76,7 +102,7 @@ const startServer = async () => {
     // Start Express server on all network interfaces (0.0.0.0)
     server = app.listen(PORT, '0.0.0.0', () => {
       const addresses = getAllNetworkAddresses(PORT);
-      
+
       console.log('🚀 CultureKart API Server');
       console.log(`📡 Server running in ${process.env.NODE_ENV || 'development'} mode`);
       console.log(`🌐 Listening on port ${PORT}`);
