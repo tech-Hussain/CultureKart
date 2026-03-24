@@ -27,7 +27,7 @@ async function testArtisanBalance() {
 
     // Get escrow summary
     const escrowSummary = await Withdrawal.getArtisanEscrowSummary(artisan._id);
-    
+
     console.log('💰 Escrow Summary:');
     console.log(`   Total Escrow: ₹${escrowSummary.totalEscrow}`);
     console.log(`   Available Balance: ₹${escrowSummary.availableBalance}`);
